@@ -20,7 +20,10 @@ export default function SideNav() {
   const { data: session } = useSession();
   
   // Always initialize with default values to match server render
-  const [layoutSettings, setLayoutSettings] = useState<LayoutSettings>({    showUploadContent: true,  });
+  const [layoutSettings, setLayoutSettings] = useState<LayoutSettings>({
+    showGenerateContent: true,
+    showViewContent: true,
+    showUploadContent: true,  });
 
   const [isMounted, setIsMounted] = useState(false);
 
@@ -28,7 +31,10 @@ export default function SideNav() {
     try {
       const res = await fetch("/api/settings/layout-settings");
       const data = await res.json();
-      const settings: LayoutSettings = {        showUploadContent: data.showUploadContent,      };
+      const settings: LayoutSettings = {
+        showGenerateContent: data.showGenerateContent,
+        showViewContent: data.showViewContent,
+        showUploadContent: data.showUploadContent,      };
       
       setLayoutSettings(settings);
       

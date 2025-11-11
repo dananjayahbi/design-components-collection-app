@@ -31,7 +31,10 @@ export interface LayoutNavItem {
  * Layout Settings Interface
  * Must match the LayoutSettings model in prisma/schema.prisma
  */
-export interface LayoutSettings {  showUploadContent: boolean;}
+export interface LayoutSettings {
+  showGenerateContent: boolean;
+  showViewContent: boolean;
+  showUploadContent: boolean;}
 
 /**
  * All Layout Navigation Items
@@ -75,6 +78,15 @@ export const layoutNavigationItems: LayoutNavItem[] = [
     icon: ScanEye,
     locked: false,
     settingsKey: "showViewContent",
+  },
+  {
+    id: "uploadContent",
+    label: "Upload Content",
+    description: "Upload and manage your content",
+    href: "/upload-content",
+    icon: FileUp,
+    locked: false,
+    settingsKey: "showUploadContent",
   },{
     id: "settings",
     label: "Settings",

@@ -6,7 +6,10 @@ import { Eye, EyeOff, Lock } from "lucide-react";
 import { layoutNavigationItems, type LayoutSettings } from "@/lib/constants";
 
 export default function LayoutSettingsTab() {
-  const [settings, setSettings] = useState<LayoutSettings>({    showUploadContent: true,  });
+  const [settings, setSettings] = useState<LayoutSettings>({
+    showGenerateContent: true,
+    showViewContent: true,
+    showUploadContent: true,  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -20,7 +23,10 @@ export default function LayoutSettingsTab() {
       const response = await fetch("/api/settings/layout-settings");
       if (response.ok) {
         const data = await response.json();
-        setSettings({          showUploadContent: data.showUploadContent,        });
+        setSettings({
+          showGenerateContent: data.showGenerateContent,
+          showViewContent: data.showViewContent,
+          showUploadContent: data.showUploadContent,        });
       }
     } catch (error) {
       console.error("Error fetching layout settings:", error);
