@@ -28,7 +28,7 @@ export default function Header() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 bg-transparent z-40">
+    <header className="fixed top-0 left-0 right-0 h-16 bg-white/50 backdrop-blur-lg z-40">
       <div className="h-full px-8 flex items-center justify-end border-b border-gray-200">
         {/* User Profile Dropdown */}
         <div className="relative" ref={dropdownRef}>

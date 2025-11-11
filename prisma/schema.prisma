@@ -45,3 +45,43 @@ model RegistrationRequest {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 }
+
+// Model for storing Gemini text generation models
+model TextModel {
+  id          String   @id @default(cuid())
+  name        String   // Display name
+  modelId     String   @unique // Actual model ID used in API calls
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Model for storing Gemini image generation models
+model ImageModel {
+  id          String   @id @default(cuid())
+  name        String   // Display name
+  modelId     String   @unique // Actual model ID used in API calls
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Model for storing image generation settings
+model ImageSettings {
+  id                String   @id @default(cuid())
+  defaultAspectRatio String  @default("3:4")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Model for storing layout/UI settings
+model LayoutSettings {
+  id                    String   @id @default(cuid())
+  // Navigation visibility settings
+  showGenerateContent   Boolean  @default(true)  showTest3             Boolean  @default(true)  showViewContent       Boolean  @default(true)
+  showUploadContent     Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
