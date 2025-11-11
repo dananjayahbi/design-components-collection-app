@@ -18,9 +18,8 @@ export async function GET() {
     if (!settings) {
       settings = await prisma.layoutSettings.create({
         data: {
-          showGenerateContent: true,
-          showViewContent: true,
-          showUploadContent: true,        },
+
+        },
       });
     }
 
@@ -44,7 +43,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { showGenerateContent, showViewContent, showUploadContent, showSm1 } = body;
+    const {  } = body;
 
     // Get or create settings
     let settings = await prisma.layoutSettings.findFirst();
@@ -52,17 +51,15 @@ export async function PATCH(request: Request) {
     if (!settings) {
       settings = await prisma.layoutSettings.create({
         data: {
-          showGenerateContent: showGenerateContent ?? true,
-          showViewContent: showViewContent ?? true,
-          showUploadContent: showUploadContent ?? true,        },
+
+      },
       });
     } else {
       settings = await prisma.layoutSettings.update({
         where: { id: settings.id },
         data: {
-          showGenerateContent: showGenerateContent ?? settings.showGenerateContent,
-          showViewContent: showViewContent ?? settings.showViewContent,
-          showUploadContent: showUploadContent ?? settings.showUploadContent,        },
+
+      },
       });
     }
 
