@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import CodeEditor from "./CodeEditor";
 import SandboxPreview from "./SandboxPreview";
+import { Copy, Check, RotateCcw, Trash2 } from "lucide-react";
 
 // Sample starter code
 const defaultHtml = `<div class="card">
@@ -58,6 +59,7 @@ export default function BasicComponentsContent() {
   const [html, setHtml] = useState(defaultHtml);
   const [css, setCss] = useState(defaultCss);
   const [javascript, setJavascript] = useState(defaultJs);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const handleClearAll = () => {
     setHtml("");
@@ -71,27 +73,63 @@ export default function BasicComponentsContent() {
     setJavascript(defaultJs);
   };
 
+  const copyToClipboard = useCallback(async (code: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(type);
+      setTimeout(() => setCopied(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  }, []);
+
+  const copyAllCode = useCallback(async () => {
+    const fullCode = `<!-- HTML -->\n${html}\n\n/* CSS */\n<style>\n${css}\n</style>\n\n// JavaScript\n<script>\n${javascript}\n</script>`;
+    await copyToClipboard(fullCode, "all");
+  }, [html, css, javascript, copyToClipboard]);
+
   return (
     <div className="h-[calc(100vh-180px)] flex flex-col">
       {/* Header with actions */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Component Sandbox</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Component Sandbox
+          </h1>
           <p className="text-gray-600 text-sm">
-            Write HTML, CSS, and JavaScript code to preview your components in real-time.
+            Write HTML, CSS, and JavaScript code to preview your components in
+            real-time.
           </p>
         </div>
         <div className="flex gap-2">
           <button
-            onClick={handleClearAll}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            onClick={() => copyAllCode()}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
+            {copied === "all" ? (
+              <>
+                <Check className="w-4 h-4 text-green-500" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                Copy All
+              </>
+            )}
+          </button>
+          <button
+            onClick={handleClearAll}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
             Clear All
           </button>
           <button
             onClick={handleResetDefaults}
-            className="px-4 py-2 text-sm font-medium text-white bg-[#5B50E8] rounded-lg hover:bg-[#4840C7] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#5B50E8] rounded-lg hover:bg-[#4840C7] transition-colors"
           >
+            <RotateCcw className="w-4 h-4" />
             Reset Defaults
           </button>
         </div>

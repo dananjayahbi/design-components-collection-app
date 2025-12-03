@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import Editor from "@monaco-editor/react";
 
 interface CodeEditorProps {
   language: "html" | "css" | "javascript";
@@ -9,24 +9,24 @@ interface CodeEditorProps {
   label: string;
 }
 
-const languageColors = {
+const languageConfig = {
   html: {
     border: "border-orange-400",
-    bg: "bg-orange-50",
     label: "bg-orange-500",
     icon: "📄",
+    monacoLang: "html",
   },
   css: {
     border: "border-blue-400",
-    bg: "bg-blue-50",
     label: "bg-blue-500",
     icon: "🎨",
+    monacoLang: "css",
   },
   javascript: {
     border: "border-yellow-400",
-    bg: "bg-yellow-50",
     label: "bg-yellow-500",
     icon: "⚡",
+    monacoLang: "javascript",
   },
 };
 
@@ -36,24 +36,47 @@ export default function CodeEditor({
   onChange,
   label,
 }: CodeEditorProps) {
-  const colors = languageColors[language];
+  const config = languageConfig[language];
+
+  const handleEditorChange = (value: string | undefined) => {
+    onChange(value || "");
+  };
 
   return (
-    <div className={`flex flex-col h-full rounded-lg border-2 ${colors.border} overflow-hidden`}>
+    <div
+      className={`flex flex-col h-full rounded-lg border-2 ${config.border} overflow-hidden`}
+    >
       {/* Header */}
-      <div className={`${colors.label} px-3 py-2 flex items-center gap-2`}>
-        <span className="text-lg">{colors.icon}</span>
+      <div className={`${config.label} px-3 py-2 flex items-center gap-2`}>
+        <span className="text-lg">{config.icon}</span>
         <span className="text-white font-semibold text-sm">{label}</span>
       </div>
 
-      {/* Editor */}
-      <div className={`flex-1 ${colors.bg}`}>
-        <textarea
+      {/* Monaco Editor */}
+      <div className="flex-1 min-h-0">
+        <Editor
+          height="100%"
+          language={config.monacoLang}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={`w-full h-full p-3 font-mono text-sm bg-transparent resize-none focus:outline-none`}
-          placeholder={`Enter your ${language.toUpperCase()} code here...`}
-          spellCheck={false}
+          onChange={handleEditorChange}
+          theme="vs-dark"
+          options={{
+            minimap: { enabled: false },
+            fontSize: 13,
+            lineNumbers: "on",
+            scrollBeyondLastLine: false,
+            wordWrap: "on",
+            wrappingIndent: "indent",
+            automaticLayout: true,
+            tabSize: 2,
+            padding: { top: 8, bottom: 8 },
+            scrollbar: {
+              vertical: "auto",
+              horizontal: "auto",
+              verticalScrollbarSize: 8,
+              horizontalScrollbarSize: 8,
+            },
+          }}
         />
       </div>
     </div>
