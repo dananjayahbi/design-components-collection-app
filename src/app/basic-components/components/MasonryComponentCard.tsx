@@ -37,8 +37,10 @@ function MasonryComponentCardComponent({
   const [isVisible, setIsVisible] = useState(false);
   const [hasRendered, setHasRendered] = useState(false);
   const [previewHeight, setPreviewHeight] = useState(MIN_PREVIEW_HEIGHT);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -172,6 +174,18 @@ function MasonryComponentCardComponent({
     }
   };
 
+  // Handle menu toggle with position calculation
+  const handleMenuToggle = useCallback(() => {
+    if (!showMenu && menuButtonRef.current) {
+      const rect = menuButtonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + 4, // 4px gap below the button
+        left: rect.right - 140, // Align right edge (140px is min-w-[140px])
+      });
+    }
+    setShowMenu(!showMenu);
+  }, [showMenu]);
+
   return (
     <div
       ref={containerRef}
@@ -247,20 +261,24 @@ function MasonryComponentCardComponent({
           </h3>
           <div className="relative">
             <button
-              onClick={() => setShowMenu(!showMenu)}
+              ref={menuButtonRef}
+              onClick={handleMenuToggle}
               className="p-1 hover:bg-gray-100 rounded transition-colors"
             >
               <MoreVertical className="w-4 h-4 text-gray-500" />
             </button>
 
-            {/* Dropdown Menu */}
+            {/* Dropdown Menu - Fixed position to escape overflow:hidden */}
             {showMenu && (
               <>
                 <div
-                  className="fixed inset-0 z-10"
+                  className="fixed inset-0 z-[999]"
                   onClick={() => setShowMenu(false)}
                 />
-                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1 min-w-[140px]">
+                <div 
+                  className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-[1000] py-1 min-w-[140px]"
+                  style={{ top: menuPosition.top, left: menuPosition.left }}
+                >
                   <button
                     onClick={() => {
                       onOpen?.(component);

@@ -49,15 +49,16 @@ export default function BasicComponentsContent() {
     [searchQuery, searchComponents]
   );
 
-  // Handle open component in sandbox
+  // Handle open component in sandbox (opens in new tab)
   const handleOpenComponent = useCallback(
     (component: BasicComponent) => {
-      // Navigate to save-basic-components with component data in query params
-      // We'll use sessionStorage to pass the full data
-      sessionStorage.setItem("editComponent", JSON.stringify(component));
-      router.push(`/save-basic-components?edit=${component.id}`);
+      // Store the component data in localStorage with the component ID as the key
+      // This ensures each component can be opened independently in new tabs
+      localStorage.setItem(`editComponent_${component.id}`, JSON.stringify(component));
+      // Open in new tab
+      window.open(`/save-basic-components?edit=${component.id}`, "_blank");
     },
-    [router]
+    []
   );
 
   // Handle edit

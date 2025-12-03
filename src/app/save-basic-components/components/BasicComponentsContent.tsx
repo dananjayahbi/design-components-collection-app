@@ -79,10 +79,17 @@ export default function BasicComponentsContent() {
   const [editingComponent, setEditingComponent] =
     useState<EditingComponent | null>(null);
 
-  // Load component from sessionStorage when editing
+  // Load component from localStorage when editing
   useEffect(() => {
     if (editId) {
-      const storedComponent = sessionStorage.getItem("editComponent");
+      // First try the new localStorage key format (with component ID)
+      let storedComponent = localStorage.getItem(`editComponent_${editId}`);
+      
+      // Fallback to old sessionStorage method for backward compatibility
+      if (!storedComponent) {
+        storedComponent = sessionStorage.getItem("editComponent");
+      }
+      
       if (storedComponent) {
         try {
           const component = JSON.parse(storedComponent);
@@ -96,7 +103,8 @@ export default function BasicComponentsContent() {
               description: component.description,
               tags: component.tags || [],
             });
-            // Clear sessionStorage after loading
+            // Clear storage after loading
+            localStorage.removeItem(`editComponent_${editId}`);
             sessionStorage.removeItem("editComponent");
           }
         } catch (e) {
