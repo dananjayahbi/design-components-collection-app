@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import CodeEditor from "./CodeEditor";
 import SandboxPreview from "./SandboxPreview";
 import SaveComponentModal from "./SaveComponentModal";
-import { Copy, Check, RotateCcw, Trash2, Save } from "lucide-react";
+import { Copy, Check, RotateCcw, Trash2, Save, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
+import Link from "next/link";
 
 // Sample starter code
 const defaultHtml = `<div class="card">
@@ -57,13 +59,52 @@ button.addEventListener('click', () => {
   button.textContent = \`Clicked \${count} times!\`;
 });`;
 
+interface EditingComponent {
+  id: string;
+  name: string;
+  description: string | null;
+  tags: string[];
+}
+
 export default function BasicComponentsContent() {
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
+
   const [html, setHtml] = useState(defaultHtml);
   const [css, setCss] = useState(defaultCss);
   const [javascript, setJavascript] = useState(defaultJs);
   const [copied, setCopied] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [editingComponent, setEditingComponent] =
+    useState<EditingComponent | null>(null);
+
+  // Load component from sessionStorage when editing
+  useEffect(() => {
+    if (editId) {
+      const storedComponent = sessionStorage.getItem("editComponent");
+      if (storedComponent) {
+        try {
+          const component = JSON.parse(storedComponent);
+          if (component.id === editId) {
+            setHtml(component.html || "");
+            setCss(component.css || "");
+            setJavascript(component.javascript || "");
+            setEditingComponent({
+              id: component.id,
+              name: component.name,
+              description: component.description,
+              tags: component.tags || [],
+            });
+            // Clear sessionStorage after loading
+            sessionStorage.removeItem("editComponent");
+          }
+        } catch (e) {
+          console.error("Failed to parse edit component:", e);
+        }
+      }
+    }
+  }, [editId]);
 
   const handleClearAll = () => {
     setHtml("");
@@ -99,19 +140,35 @@ export default function BasicComponentsContent() {
   ) => {
     setIsSaving(true);
     try {
-      const response = await fetch("/api/basic-components", {
-        method: "POST",
+      const isUpdating = !!editingComponent;
+      const url = "/api/basic-components";
+      const method = isUpdating ? "PATCH" : "POST";
+
+      const body = isUpdating
+        ? {
+            id: editingComponent.id,
+            name,
+            description,
+            html,
+            css,
+            javascript,
+            tags,
+          }
+        : {
+            name,
+            description,
+            html,
+            css,
+            javascript,
+            tags,
+          };
+
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name,
-          description,
-          html,
-          css,
-          javascript,
-          tags,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -119,8 +176,22 @@ export default function BasicComponentsContent() {
         throw new Error(error.error || "Failed to save component");
       }
 
-      toast.success("Component saved successfully!");
+      toast.success(
+        isUpdating
+          ? "Component updated successfully!"
+          : "Component saved successfully!"
+      );
       setShowSaveModal(false);
+
+      // If updating, update the editingComponent with new values
+      if (isUpdating) {
+        setEditingComponent({
+          ...editingComponent,
+          name,
+          description,
+          tags,
+        });
+      }
     } catch (error) {
       console.error("Error saving component:", error);
       toast.error(
@@ -135,14 +206,28 @@ export default function BasicComponentsContent() {
     <div className="h-[calc(100vh-180px)] flex flex-col">
       {/* Header with actions */}
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Save Basic Components
-          </h1>
-          <p className="text-gray-600 text-sm">
-            Write HTML, CSS, and JavaScript code to preview and save your
-            components.
-          </p>
+        <div className="flex items-center gap-4">
+          {editingComponent && (
+            <Link
+              href="/basic-components"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Back to components"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </Link>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {editingComponent
+                ? `Editing: ${editingComponent.name}`
+                : "Save Basic Components"}
+            </h1>
+            <p className="text-gray-600 text-sm">
+              {editingComponent
+                ? "Edit your component code and save changes."
+                : "Write HTML, CSS, and JavaScript code to preview and save your components."}
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <button
@@ -180,7 +265,7 @@ export default function BasicComponentsContent() {
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
           >
             <Save className="w-4 h-4" />
-            Save
+            {editingComponent ? "Update" : "Save"}
           </button>
         </div>
       </div>
@@ -227,6 +312,10 @@ export default function BasicComponentsContent() {
         onClose={() => setShowSaveModal(false)}
         onSave={handleSaveComponent}
         isSaving={isSaving}
+        initialName={editingComponent?.name || ""}
+        initialDescription={editingComponent?.description || ""}
+        initialTags={editingComponent?.tags || []}
+        isEditing={!!editingComponent}
       />
     </div>
   );

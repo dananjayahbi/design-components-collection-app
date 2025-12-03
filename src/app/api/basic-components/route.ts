@@ -65,7 +65,7 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(components);
+    return NextResponse.json({ components });
   } catch (error) {
     console.error("Error fetching basic components:", error);
     return NextResponse.json(

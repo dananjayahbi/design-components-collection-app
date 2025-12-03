@@ -8,6 +8,10 @@ interface SaveComponentModalProps {
   onClose: () => void;
   onSave: (name: string, description: string, tags: string[]) => void;
   isSaving: boolean;
+  initialName?: string;
+  initialDescription?: string;
+  initialTags?: string[];
+  isEditing?: boolean;
 }
 
 export default function SaveComponentModal({
@@ -15,10 +19,14 @@ export default function SaveComponentModal({
   onClose,
   onSave,
   isSaving,
+  initialName = "",
+  initialDescription = "",
+  initialTags = [],
+  isEditing = false,
 }: SaveComponentModalProps) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
+  const [name, setName] = useState(initialName);
+  const [description, setDescription] = useState(initialDescription);
+  const [tags, setTags] = useState<string[]>(initialTags);
   const [tagInput, setTagInput] = useState("");
   const modalRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -30,15 +38,15 @@ export default function SaveComponentModal({
     }
   }, [isOpen]);
 
-  // Reset form when modal closes
+  // Reset form when modal closes or set initial values when editing
   useEffect(() => {
-    if (!isOpen) {
-      setName("");
-      setDescription("");
-      setTags([]);
+    if (isOpen) {
+      setName(initialName);
+      setDescription(initialDescription);
+      setTags(initialTags);
       setTagInput("");
     }
-  }, [isOpen]);
+  }, [isOpen, initialName, initialDescription, initialTags]);
 
   // Handle click outside to close
   useEffect(() => {
@@ -113,7 +121,7 @@ export default function SaveComponentModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">
-            Save Component
+            {isEditing ? "Update Component" : "Save Component"}
           </h2>
           <button
             onClick={onClose}
@@ -232,12 +240,12 @@ export default function SaveComponentModal({
               {isSaving ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Saving...
+                  {isEditing ? "Updating..." : "Saving..."}
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  Save Component
+                  {isEditing ? "Update Component" : "Save Component"}
                 </>
               )}
             </button>
