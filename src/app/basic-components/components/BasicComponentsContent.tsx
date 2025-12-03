@@ -4,16 +4,16 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
-  Filter,
   Plus,
   Grid,
-  List,
+  LayoutGrid,
   RefreshCw,
   Package,
   AlertCircle,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { ComponentCard } from "./ComponentCard";
+import { MasonryComponentCard } from "./MasonryComponentCard";
 import { useBasicComponents, type BasicComponent } from "../hooks";
 import { ConfirmDialog } from "@/components/common";
 
@@ -29,7 +29,7 @@ export default function BasicComponentsContent() {
   } = useBasicComponents();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "masonry">("masonry");
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     componentId: string;
@@ -151,15 +151,15 @@ export default function BasicComponentsContent() {
               <Grid className="w-5 h-5" />
             </button>
             <button
-              onClick={() => setViewMode("list")}
+              onClick={() => setViewMode("masonry")}
               className={`p-2.5 transition-colors ${
-                viewMode === "list"
+                viewMode === "masonry"
                   ? "bg-[#5B50E8] text-white"
                   : "bg-white text-gray-600 hover:bg-gray-50"
               }`}
-              title="List View"
+              title="Masonry View"
             >
-              <List className="w-5 h-5" />
+              <LayoutGrid className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -221,25 +221,35 @@ export default function BasicComponentsContent() {
         </div>
       )}
 
-      {/* Components Grid/List */}
+      {/* Components Grid/Masonry */}
       {!isLoading && !error && components && components.length > 0 && (
-        <div
-          className={
-            viewMode === "grid"
-              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-              : "flex flex-col gap-4"
-          }
-        >
-          {components.map((component) => (
-            <ComponentCard
-              key={component.id}
-              component={component}
-              onEdit={handleEdit}
-              onDelete={(id) => handleDeleteClick(id, component.name)}
-              onOpen={handleOpenComponent}
-            />
-          ))}
-        </div>
+        <>
+          {viewMode === "grid" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {components.map((component) => (
+                <ComponentCard
+                  key={component.id}
+                  component={component}
+                  onEdit={handleEdit}
+                  onDelete={(id) => handleDeleteClick(id, component.name)}
+                  onOpen={handleOpenComponent}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4">
+              {components.map((component) => (
+                <MasonryComponentCard
+                  key={component.id}
+                  component={component}
+                  onEdit={handleEdit}
+                  onDelete={(id) => handleDeleteClick(id, component.name)}
+                  onOpen={handleOpenComponent}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Delete Confirmation Dialog */}
