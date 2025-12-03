@@ -1,4 +1,4 @@
-import { Users, Settings, User, LayoutDashboard, Badge, Cuboid, Wallpaper } from "lucide-react";
+import { Users, Settings, User, LayoutDashboard, Badge, Cuboid, Wallpaper, LineSquiggle, Rotate3d } from "lucide-react";
 
 /**
  * Layout Navigation Configuration
@@ -87,6 +87,24 @@ export const layoutNavigationItems: LayoutNavItem[] = [
     icon: Wallpaper,
     locked: false,
     settingsKey: "showDesignConcepts",
+  },
+    {
+    id: "saveBasicComponents",
+    label: "Save Basic Components",
+    description: "Save Basic Components",
+    href: "/save-basic-components",
+    icon: LineSquiggle,
+    locked: false,
+    settingsKey: "showSaveBasicComponents",
+  },
+    {
+    id: "saveReactComponents",
+    label: "Save React Components",
+    description: "Save React Components",
+    href: "/save-react-components",
+    icon: Rotate3d,
+    locked: false,
+    settingsKey: "showSaveReactComponents",
   },
   {
     id: "settings",

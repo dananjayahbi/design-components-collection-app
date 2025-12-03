@@ -1,4 +1,4 @@
-import { Users, Settings, Badge, Cuboid, Wallpaper } from "lucide-react";
+import { Users, Settings, Badge, Cuboid, Wallpaper, LineSquiggle, Rotate3d } from "lucide-react";
 
 /**
  * Navigation Configuration
@@ -60,5 +60,15 @@ export const navigationItems: NavItem[] = [
     name: "Design Concepts",
     href: "/design-concepts",
     icon: Wallpaper,
+  },
+  {
+    name: "Save Basic Components",
+    href: "/save-basic-components",
+    icon: LineSquiggle,
+  },
+  {
+    name: "Save React Components",
+    href: "/save-react-components",
+    icon: Rotate3d,
   },
 ];
