@@ -58,3 +58,18 @@ model LayoutSettings {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
+
+// Model for storing basic component code snippets
+// Uses TEXT type to support very long code (1000+ lines)
+model BasicComponent {
+  id          String   @id @default(cuid())
+  name        String   // Component name for identification
+  description String?  // Optional description of the component
+  html        String   @db.Text // HTML code
+  css         String   @db.Text // CSS code
+  javascript  String   @db.Text // JavaScript code
+  tags        String[] // Tags for categorization
+  isFavorite  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

@@ -3,7 +3,9 @@
 import { useState, useCallback } from "react";
 import CodeEditor from "./CodeEditor";
 import SandboxPreview from "./SandboxPreview";
-import { Copy, Check, RotateCcw, Trash2 } from "lucide-react";
+import SaveComponentModal from "./SaveComponentModal";
+import { Copy, Check, RotateCcw, Trash2, Save } from "lucide-react";
+import toast from "react-hot-toast";
 
 // Sample starter code
 const defaultHtml = `<div class="card">
@@ -60,6 +62,8 @@ export default function BasicComponentsContent() {
   const [css, setCss] = useState(defaultCss);
   const [javascript, setJavascript] = useState(defaultJs);
   const [copied, setCopied] = useState<string | null>(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleClearAll = () => {
     setHtml("");
@@ -88,17 +92,56 @@ export default function BasicComponentsContent() {
     await copyToClipboard(fullCode, "all");
   }, [html, css, javascript, copyToClipboard]);
 
+  const handleSaveComponent = async (
+    name: string,
+    description: string,
+    tags: string[]
+  ) => {
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/basic-components", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          description,
+          html,
+          css,
+          javascript,
+          tags,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to save component");
+      }
+
+      toast.success("Component saved successfully!");
+      setShowSaveModal(false);
+    } catch (error) {
+      console.error("Error saving component:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save component"
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="h-[calc(100vh-180px)] flex flex-col">
       {/* Header with actions */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Component Sandbox
+            Save Basic Components
           </h1>
           <p className="text-gray-600 text-sm">
-            Write HTML, CSS, and JavaScript code to preview your components in
-            real-time.
+            Write HTML, CSS, and JavaScript code to preview and save your
+            components.
           </p>
         </div>
         <div className="flex gap-2">
@@ -127,10 +170,17 @@ export default function BasicComponentsContent() {
           </button>
           <button
             onClick={handleResetDefaults}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#5B50E8] rounded-lg hover:bg-[#4840C7] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
-            Reset Defaults
+            Reset
+          </button>
+          <button
+            onClick={() => setShowSaveModal(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Save className="w-4 h-4" />
+            Save
           </button>
         </div>
       </div>
@@ -170,6 +220,14 @@ export default function BasicComponentsContent() {
           <SandboxPreview html={html} css={css} javascript={javascript} />
         </div>
       </div>
+
+      {/* Save Component Modal */}
+      <SaveComponentModal
+        isOpen={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        onSave={handleSaveComponent}
+        isSaving={isSaving}
+      />
     </div>
   );
 }
