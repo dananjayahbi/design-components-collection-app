@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import CodeEditor from "./CodeEditor";
 import SandboxPreview from "./SandboxPreview";
 import SaveComponentModal from "./SaveComponentModal";
+import FullScreenEditorModal from "./FullScreenEditorModal";
+import FullScreenPreviewModal from "./FullScreenPreviewModal";
 import { Copy, Check, RotateCcw, Trash2, Save, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
@@ -78,8 +80,17 @@ export default function BasicComponentsContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [editingComponent, setEditingComponent] =
     useState<EditingComponent | null>(null);
+  
+  // Full screen modal states
+  const [fullScreenEditor, setFullScreenEditor] = useState<{
+    isOpen: boolean;
+    language: "html" | "css" | "javascript";
+    label: string;
+  }>({ isOpen: false, language: "html", label: "HTML" });
+  const [showFullScreenPreview, setShowFullScreenPreview] = useState(false);
+  const [isLoadingComponent, setIsLoadingComponent] = useState(false);
 
-  // Load component from localStorage when editing
+  // Load component from localStorage when editing, or fetch from API on refresh
   useEffect(() => {
     if (editId) {
       // First try the new localStorage key format (with component ID)
@@ -106,11 +117,42 @@ export default function BasicComponentsContent() {
             // Clear storage after loading
             localStorage.removeItem(`editComponent_${editId}`);
             sessionStorage.removeItem("editComponent");
+            return;
           }
         } catch (e) {
           console.error("Failed to parse edit component:", e);
         }
       }
+      
+      // If no stored component, fetch from API (handles page refresh scenario)
+      const fetchComponent = async () => {
+        setIsLoadingComponent(true);
+        try {
+          const response = await fetch(`/api/basic-components?id=${editId}`);
+          if (response.ok) {
+            const component = await response.json();
+            setHtml(component.html || "");
+            setCss(component.css || "");
+            setJavascript(component.javascript || "");
+            setEditingComponent({
+              id: component.id,
+              name: component.name,
+              description: component.description,
+              tags: component.tags || [],
+            });
+          } else {
+            console.error("Failed to fetch component");
+            toast.error("Failed to load component");
+          }
+        } catch (error) {
+          console.error("Error fetching component:", error);
+          toast.error("Error loading component");
+        } finally {
+          setIsLoadingComponent(false);
+        }
+      };
+      
+      fetchComponent();
     }
   }, [editId]);
 
@@ -288,6 +330,7 @@ export default function BasicComponentsContent() {
               value={html}
               onChange={setHtml}
               label="HTML"
+              onExpand={() => setFullScreenEditor({ isOpen: true, language: "html", label: "HTML" })}
             />
           </div>
           <div className="flex-1 min-h-0">
@@ -296,6 +339,7 @@ export default function BasicComponentsContent() {
               value={css}
               onChange={setCss}
               label="CSS"
+              onExpand={() => setFullScreenEditor({ isOpen: true, language: "css", label: "CSS" })}
             />
           </div>
           <div className="flex-1 min-h-0">
@@ -304,13 +348,19 @@ export default function BasicComponentsContent() {
               value={javascript}
               onChange={setJavascript}
               label="JavaScript"
+              onExpand={() => setFullScreenEditor({ isOpen: true, language: "javascript", label: "JavaScript" })}
             />
           </div>
         </div>
 
         {/* Right side - Preview */}
         <div className="w-1/2">
-          <SandboxPreview html={html} css={css} javascript={javascript} />
+          <SandboxPreview 
+            html={html} 
+            css={css} 
+            javascript={javascript}
+            onExpand={() => setShowFullScreenPreview(true)}
+          />
         </div>
       </div>
 
@@ -324,6 +374,35 @@ export default function BasicComponentsContent() {
         initialDescription={editingComponent?.description || ""}
         initialTags={editingComponent?.tags || []}
         isEditing={!!editingComponent}
+      />
+
+      {/* Full Screen Editor Modal */}
+      <FullScreenEditorModal
+        isOpen={fullScreenEditor.isOpen}
+        onClose={() => setFullScreenEditor({ ...fullScreenEditor, isOpen: false })}
+        language={fullScreenEditor.language}
+        label={fullScreenEditor.label}
+        value={
+          fullScreenEditor.language === "html" 
+            ? html 
+            : fullScreenEditor.language === "css" 
+              ? css 
+              : javascript
+        }
+        onChange={(value) => {
+          if (fullScreenEditor.language === "html") setHtml(value);
+          else if (fullScreenEditor.language === "css") setCss(value);
+          else setJavascript(value);
+        }}
+      />
+
+      {/* Full Screen Preview Modal */}
+      <FullScreenPreviewModal
+        isOpen={showFullScreenPreview}
+        onClose={() => setShowFullScreenPreview(false)}
+        html={html}
+        css={css}
+        javascript={javascript}
       />
     </div>
   );
