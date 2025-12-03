@@ -22,8 +22,9 @@ interface MasonryComponentCardProps {
   onOpen?: (component: BasicComponent) => void;
 }
 
-// Fixed column width in pixels (based on 3 columns layout)
-const COLUMN_WIDTH = 350;
+// Height constraints for the preview area
+const MIN_PREVIEW_HEIGHT = 150;
+const MAX_PREVIEW_HEIGHT = 600;
 
 function MasonryComponentCardComponent({
   component,
@@ -35,7 +36,7 @@ function MasonryComponentCardComponent({
   const [copied, setCopied] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [hasRendered, setHasRendered] = useState(false);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0, scale: 1 });
+  const [previewHeight, setPreviewHeight] = useState(MIN_PREVIEW_HEIGHT);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -75,37 +76,7 @@ function MasonryComponentCardComponent({
     };
   }, []);
 
-  // Calculate optimal scale based on content dimensions
-  const calculateScale = useCallback((contentWidth: number, contentHeight: number) => {
-    // Get the actual container width (column width)
-    const containerWidth = containerRef.current?.offsetWidth || COLUMN_WIDTH;
-    
-    // Calculate scale to fit width (with some padding)
-    const availableWidth = containerWidth - 8; // 4px padding on each side
-    const scaleX = availableWidth / contentWidth;
-    
-    // Limit scale: don't enlarge small components, but allow shrinking large ones
-    // Minimum scale: 0.2 (for very large content like full pages)
-    // Maximum scale: 1.0 (never enlarge beyond original)
-    const scale = Math.min(Math.max(scaleX, 0.2), 1.0);
-    
-    // Calculate the scaled height
-    const scaledHeight = contentHeight * scale;
-    
-    // Set minimum and maximum display heights
-    const minHeight = 100;
-    const maxHeight = 600;
-    const displayHeight = Math.min(Math.max(scaledHeight, minHeight), maxHeight);
-    
-    return {
-      width: contentWidth,
-      height: contentHeight,
-      scale,
-      displayHeight,
-    };
-  }, []);
-
-  // Generate the HTML content for the iframe with proper sizing
+  // Generate the HTML content for the iframe
   const generatePreviewHtml = useCallback(() => {
     return `
 <!DOCTYPE html>
@@ -119,14 +90,12 @@ function MasonryComponentCardComponent({
       padding: 0;
       box-sizing: border-box;
     }
-    html {
-      width: max-content;
-      min-width: 100%;
+    html, body {
+      width: 100%;
+      overflow: hidden;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      display: inline-block;
-      min-width: 100%;
       padding: 16px;
       background: #ffffff;
     }
@@ -136,46 +105,32 @@ function MasonryComponentCardComponent({
 <body>
   ${component.html}
   <script>
-    // Send dimensions to parent after content renders
-    function sendDimensions() {
-      // Get the bounding rect of the body content
-      const body = document.body;
-      const width = Math.max(
-        body.scrollWidth,
-        body.offsetWidth,
-        document.documentElement.scrollWidth
-      );
+    // Send content height to parent
+    function sendHeight() {
       const height = Math.max(
-        body.scrollHeight,
-        body.offsetHeight,
+        document.body.scrollHeight,
+        document.body.offsetHeight,
         document.documentElement.scrollHeight
       );
-      
       window.parent.postMessage({ 
-        type: 'dimensions', 
-        width: width,
+        type: 'contentHeight', 
         height: height,
         id: '${component.id}' 
       }, '*');
     }
     
-    // Send dimensions after content loads
+    // Send height after load
     window.addEventListener('load', () => {
-      requestAnimationFrame(() => {
-        setTimeout(sendDimensions, 50);
-      });
+      requestAnimationFrame(() => setTimeout(sendHeight, 100));
     });
     
-    // Also send dimensions when images load
+    // Images
     document.querySelectorAll('img').forEach(img => {
-      img.addEventListener('load', sendDimensions);
+      img.addEventListener('load', sendHeight);
     });
     
-    // Initial send
     if (document.readyState === 'complete') {
-      requestAnimationFrame(() => {
-        setTimeout(sendDimensions, 50);
-      });
+      requestAnimationFrame(() => setTimeout(sendHeight, 100));
     }
     
     try {
@@ -188,27 +143,23 @@ function MasonryComponentCardComponent({
 </html>`;
   }, [component.css, component.html, component.javascript, component.id]);
 
-  // Listen for dimension messages from iframe
+  // Listen for height messages from iframe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (
-        event.data?.type === "dimensions" &&
+        event.data?.type === "contentHeight" &&
         event.data?.id === component.id
       ) {
-        const { width, height } = event.data;
-        const { scale, displayHeight } = calculateScale(width, height);
-        
-        setDimensions({
-          width,
-          height,
-          scale,
-        });
+        const height = event.data.height;
+        // Clamp height between MIN and MAX
+        const clampedHeight = Math.min(MAX_PREVIEW_HEIGHT, Math.max(MIN_PREVIEW_HEIGHT, height));
+        setPreviewHeight(clampedHeight);
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [component.id, calculateScale]);
+  }, [component.id]);
 
   const handleCopyCode = async () => {
     const fullCode = `<!-- HTML -->\n${component.html}\n\n/* CSS */\n${component.css}\n\n// JavaScript\n${component.javascript}`;
@@ -221,45 +172,30 @@ function MasonryComponentCardComponent({
     }
   };
 
-  // Calculate display dimensions
-  const scaledHeight = dimensions.height > 0 
-    ? Math.min(Math.max(dimensions.height * dimensions.scale, 100), 600)
-    : 200;
-
   return (
     <div
       ref={containerRef}
       className="group relative bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-[#5B50E8]/50 hover:shadow-xl transition-all duration-300 break-inside-avoid mb-4"
     >
-      {/* Preview Area - Dynamic height based on content */}
+      {/* Preview Area - Fixed width (from CSS columns), dynamic height based on content */}
       <div
-        className="relative bg-gray-50 overflow-hidden"
-        style={{ height: `${scaledHeight}px` }}
+        className="relative bg-white overflow-hidden"
+        style={{ height: `${previewHeight}px` }}
       >
         {isVisible || hasRendered ? (
-          <div className="w-full h-full relative overflow-hidden">
-            {/* Dynamically scaled iframe container */}
-            <div 
-              className="absolute origin-top-left"
-              style={{
-                width: dimensions.width > 0 ? `${dimensions.width}px` : "200%",
-                height: dimensions.height > 0 ? `${dimensions.height}px` : "200%",
-                transform: `scale(${dimensions.scale || 0.5})`,
-                transformOrigin: "top left",
-              }}
-            >
-              <iframe
-                ref={iframeRef}
-                srcDoc={generatePreviewHtml()}
-                className="w-full h-full border-0 bg-white"
-                sandbox="allow-scripts"
-                title={`Preview for ${component.name}`}
-                loading="lazy"
-              />
-            </div>
-          </div>
+          <iframe
+            ref={iframeRef}
+            srcDoc={generatePreviewHtml()}
+            className="w-full h-full border-0 bg-white"
+            sandbox="allow-scripts"
+            title={`Preview for ${component.name}`}
+            loading="lazy"
+            style={{
+              pointerEvents: "none", // Prevent iframe from capturing events
+            }}
+          />
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-gray-50 to-gray-100">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-50">
             <div className="flex items-center gap-1 text-gray-400">
               <Layers className="w-6 h-6" />
             </div>
@@ -300,13 +236,6 @@ function MasonryComponentCardComponent({
             </button>
           )}
         </div>
-
-        {/* Scale indicator */}
-        {dimensions.scale < 1 && dimensions.scale > 0 && (
-          <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/50 text-white text-xs rounded z-10">
-            {Math.round(dimensions.scale * 100)}%
-          </div>
-        )}
       </div>
 
       {/* Content */}
