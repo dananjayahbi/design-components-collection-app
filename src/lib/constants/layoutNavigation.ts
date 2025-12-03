@@ -34,6 +34,10 @@ export interface LayoutNavItem {
 export interface LayoutSettings {
   // Add settings keys here when you need toggleable navigation items
   showBasicComponents?: boolean;
+  showReactComponents?: boolean;
+  showDesignConcepts?: boolean;
+  showSaveBasicComponents?: boolean;
+  showSaveReactComponents?: boolean;
 }
 
 /**
