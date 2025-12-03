@@ -1,4 +1,4 @@
-import { Users, Settings, Badge } from "lucide-react";
+import { Users, Settings, Badge, Cuboid, Wallpaper } from "lucide-react";
 
 /**
  * Navigation Configuration
@@ -50,5 +50,15 @@ export const navigationItems: NavItem[] = [
     name: "General Components",
     href: "/general-components",
     icon: Badge,
+  },
+  {
+    name: "React Components",
+    href: "/react-components",
+    icon: Cuboid,
+  },
+  {
+    name: "Design Concepts",
+    href: "/design-concepts",
+    icon: Wallpaper,
   },
 ];

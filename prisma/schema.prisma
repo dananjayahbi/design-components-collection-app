@@ -51,6 +51,8 @@ model LayoutSettings {
   id                  String   @id @default(cuid())
   // Add new navigation visibility settings here when creating toggleable pages
   showBasicComponents Boolean  @default(true)
+  showDesignConcepts     Boolean  @default(true)
+  showReactComponents    Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }

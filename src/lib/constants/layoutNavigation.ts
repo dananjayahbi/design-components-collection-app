@@ -1,4 +1,4 @@
-import { Users, Settings, User, LayoutDashboard, Badge } from "lucide-react";
+import { Users, Settings, User, LayoutDashboard, Badge, Cuboid, Wallpaper } from "lucide-react";
 
 /**
  * Layout Navigation Configuration
@@ -69,6 +69,24 @@ export const layoutNavigationItems: LayoutNavItem[] = [
     icon: Badge,
     locked: false,
     settingsKey: "showBasicComponents",
+  },
+    {
+    id: "reactComponents",
+    label: "React Components",
+    description: "React Components",
+    href: "/react-components",
+    icon: Cuboid,
+    locked: false,
+    settingsKey: "showReactComponents",
+  },
+    {
+    id: "designConcepts",
+    label: "Design Concepts",
+    description: "Design Concepts",
+    href: "/design-concepts",
+    icon: Wallpaper,
+    locked: false,
+    settingsKey: "showDesignConcepts",
   },
   {
     id: "settings",
