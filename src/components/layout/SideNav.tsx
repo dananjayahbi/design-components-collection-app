@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { LayoutDashboard, User } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { layoutNavigationItems, getFilteredNavItems, type LayoutSettings } from "@/lib/constants";
-import { useState, useEffect } from "react";
 
 /**
  * SideNav Component
@@ -19,77 +18,8 @@ export default function SideNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
   
-  // Always initialize with default values to match server render
-  const [layoutSettings, setLayoutSettings] = useState<LayoutSettings>({
-    showGenerateContent: true,
-    showViewContent: true,
-    showUploadContent: true,  });
-
-  const [isMounted, setIsMounted] = useState(false);
-
-  const fetchLayoutSettings = async () => {
-    try {
-      const res = await fetch("/api/settings/layout-settings");
-      const data = await res.json();
-      const settings: LayoutSettings = {
-        showGenerateContent: data.showGenerateContent,
-        showViewContent: data.showViewContent,
-        showUploadContent: data.showUploadContent,      };
-      
-      setLayoutSettings(settings);
-      
-      // Update localStorage
-      if (typeof window !== "undefined") {
-        localStorage.setItem("layoutSettings", JSON.stringify(settings));
-      }
-    } catch (err) {
-      console.error("Error fetching layout settings:", err);
-    }
-  };
-
-  useEffect(() => {
-    setIsMounted(true);
-    
-    // Read from localStorage AFTER first render to avoid hydration mismatch
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("layoutSettings");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          setLayoutSettings(parsed);
-        } catch (err) {
-          console.error("Error parsing localStorage:", err);
-        }
-      }
-    }
-
-    // Fetch layout settings on mount to sync with database
-    fetchLayoutSettings();
-
-    // Listen for layout settings updates
-    const handleLayoutUpdate = () => {
-      fetchLayoutSettings();
-    };
-
-    window.addEventListener("layoutSettingsUpdated", handleLayoutUpdate);
-
-    return () => {
-      window.removeEventListener("layoutSettingsUpdated", handleLayoutUpdate);
-    };
-  }, []);
-
-  // Sync localStorage when user logs in
-  useEffect(() => {
-    if (session) {
-      // User is logged in - fetch their settings from database and update localStorage
-      fetchLayoutSettings();
-    } else {
-      // User logged out - clear layout settings from localStorage
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("layoutSettings");
-      }
-    }
-  }, [session]);
+  // Layout settings (currently empty as all pages are locked)
+  const layoutSettings: LayoutSettings = {};
 
   const isActive = (href: string) => {
     return pathname === href;

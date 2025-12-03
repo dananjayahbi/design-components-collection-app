@@ -1,4 +1,4 @@
-import { Users, Blinds, ScanEye, Settings, User, LayoutDashboard, FileUp, TestTube } from "lucide-react";
+import { Users, Settings, User, LayoutDashboard } from "lucide-react";
 
 /**
  * Layout Navigation Configuration
@@ -32,9 +32,9 @@ export interface LayoutNavItem {
  * Must match the LayoutSettings model in prisma/schema.prisma
  */
 export interface LayoutSettings {
-  showGenerateContent: boolean;
-  showViewContent: boolean;
-  showUploadContent: boolean;}
+  // Currently empty as all pages are locked (always visible)
+  // Add settings keys here when you need toggleable navigation items
+}
 
 /**
  * All Layout Navigation Items
@@ -62,32 +62,6 @@ export const layoutNavigationItems: LayoutNavItem[] = [
     requireRole: ["SUPERADMIN"], // Only SUPERADMIN can see this
   },
   {
-    id: "showGenerateContent",
-    label: "Generate Content",
-    description: "Create quotes and backgrounds",
-    href: "/generate-content",
-    icon: Blinds,
-    locked: false,
-    settingsKey: "showGenerateContent",
-  },
-  {
-    id: "showViewContent",
-    label: "View Content",
-    description: "Browse saved quotes and backgrounds",
-    href: "/view-content",
-    icon: ScanEye,
-    locked: false,
-    settingsKey: "showViewContent",
-  },
-  {
-    id: "uploadContent",
-    label: "Upload Content",
-    description: "Upload and manage your content",
-    href: "/upload-content",
-    icon: FileUp,
-    locked: false,
-    settingsKey: "showUploadContent",
-  },{
     id: "settings",
     label: "Settings",
     description: "Application settings",
