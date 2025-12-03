@@ -1,4 +1,4 @@
-import { Users, Blinds, ScanEye, Settings, FileUp, TestTube } from "lucide-react";
+import { Users, Settings, Badge } from "lucide-react";
 
 /**
  * Navigation Configuration
@@ -37,22 +37,18 @@ export const navigationItems: NavItem[] = [
     icon: Users,
   },
   {
-    name: "Generate Content",
-    href: "/generate-content",
-    icon: Blinds,
-  },
-  {
-    name: "View Content",
-    href: "/view-content",
-    icon: ScanEye,
-  },
-  {
     name: "Settings",
     href: "/settings",
     icon: Settings,
   },
   {
-    name: "Upload Content",
-    href: "/upload-content",
-    icon: FileUp,
-  },];
+    name: "Basic Components",
+    href: "/basic-components",
+    icon: Badge,
+  },
+  {
+    name: "General Components",
+    href: "/general-components",
+    icon: Badge,
+  },
+];

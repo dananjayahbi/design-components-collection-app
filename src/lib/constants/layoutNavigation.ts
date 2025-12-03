@@ -1,4 +1,4 @@
-import { Users, Settings, User, LayoutDashboard } from "lucide-react";
+import { Users, Settings, User, LayoutDashboard, Badge } from "lucide-react";
 
 /**
  * Layout Navigation Configuration
@@ -32,8 +32,8 @@ export interface LayoutNavItem {
  * Must match the LayoutSettings model in prisma/schema.prisma
  */
 export interface LayoutSettings {
-  // Currently empty as all pages are locked (always visible)
   // Add settings keys here when you need toggleable navigation items
+  showBasicComponents?: boolean;
 }
 
 /**
@@ -60,6 +60,15 @@ export const layoutNavigationItems: LayoutNavItem[] = [
     icon: Users,
     locked: true,
     requireRole: ["SUPERADMIN"], // Only SUPERADMIN can see this
+  },
+    {
+    id: "basicComponents",
+    label: "Basic Components",
+    description: "Basic Components",
+    href: "/basic-components",
+    icon: Badge,
+    locked: false,
+    settingsKey: "showBasicComponents",
   },
   {
     id: "settings",
