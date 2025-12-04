@@ -26,8 +26,6 @@ interface MasonryComponentCardProps {
 // Height constraints for the preview area (used for fallback iframe)
 const MIN_PREVIEW_HEIGHT = 150;
 const MAX_PREVIEW_HEIGHT = 600;
-// Fixed height for thumbnail display
-const THUMBNAIL_HEIGHT = 200;
 
 function MasonryComponentCardComponent({
   component,
@@ -42,6 +40,7 @@ function MasonryComponentCardComponent({
   const [previewHeight, setPreviewHeight] = useState(MIN_PREVIEW_HEIGHT);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [thumbnailError, setThumbnailError] = useState(false);
+  const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -201,15 +200,20 @@ function MasonryComponentCardComponent({
       {/* Preview Area - Shows thumbnail if available, otherwise falls back to iframe */}
       <div
         className="relative bg-white overflow-hidden"
-        style={{ height: hasThumbnail ? `${THUMBNAIL_HEIGHT}px` : `${previewHeight}px` }}
+        style={{ 
+          height: hasThumbnail ? 'auto' : `${previewHeight}px`,
+          minHeight: hasThumbnail ? '100px' : `${MIN_PREVIEW_HEIGHT}px`,
+          maxHeight: `${MAX_PREVIEW_HEIGHT}px`
+        }}
       >
         {hasThumbnail ? (
-          /* Thumbnail Display */
+          /* Thumbnail Display - preserves aspect ratio */
           <img
             src={component.thumbnailUrl!}
             alt={`Preview of ${component.name}`}
-            className="w-full h-full object-cover object-top"
+            className="w-full h-auto object-contain"
             loading="lazy"
+            onLoad={() => setThumbnailLoaded(true)}
             onError={() => setThumbnailError(true)}
           />
         ) : isVisible || hasRendered ? (

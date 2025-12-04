@@ -8,8 +8,6 @@ import {
   RotateCcw,
   Camera,
   Move,
-  Maximize2,
-  Minimize2,
 } from "lucide-react";
 import html2canvas from "html2canvas";
 
@@ -23,14 +21,13 @@ interface ThumbnailCaptureModalProps {
   componentName: string;
 }
 
-// Preset thumbnail sizes
-const THUMBNAIL_SIZES = [
-  { label: "Small", width: 200, height: 150 },
-  { label: "Medium", width: 300, height: 225 },
-  { label: "Large", width: 400, height: 300 },
-  { label: "Wide", width: 400, height: 200 },
-  { label: "Square", width: 300, height: 300 },
-];
+// Minimum and maximum capture sizes
+const MIN_SIZE = 100;
+const MAX_SIZE = 800;
+
+// Preview container dimensions
+const PREVIEW_WIDTH = 800;
+const PREVIEW_HEIGHT = 600;
 
 export default function ThumbnailCaptureModal({
   isOpen,
@@ -43,16 +40,20 @@ export default function ThumbnailCaptureModal({
 }: ThumbnailCaptureModalProps) {
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [captureSize, setCaptureSize] = useState(THUMBNAIL_SIZES[1]);
+  const [captureSize, setCaptureSize] = useState({ width: 300, height: 225 });
   const [isCapturing, setIsCapturing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [resizeStart, setResizeStart] = useState({ width: 300, height: 225, mouseX: 0, mouseY: 0 });
+  const [iframeLoaded, setIframeLoaded] = useState(false);
   
-  const previewRef = useRef<HTMLDivElement>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
   const captureAreaRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const hiddenContainerRef = useRef<HTMLDivElement>(null);
 
-  // Generate the srcdoc content
+  // Create the iframe srcdoc content (same approach as SandboxPreview for proper rendering)
   const srcdoc = useMemo(() => {
     return `
 <!DOCTYPE html>
@@ -67,15 +68,11 @@ export default function ThumbnailCaptureModal({
       padding: 0;
       box-sizing: border-box;
     }
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: auto;
-    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       padding: 16px;
       background: #ffffff;
+      min-height: 100vh;
     }
     /* User CSS */
     ${css}
@@ -105,6 +102,11 @@ export default function ThumbnailCaptureModal({
     [onClose]
   );
 
+  // Handle iframe load
+  const handleIframeLoad = useCallback(() => {
+    setIframeLoaded(true);
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       document.addEventListener("keydown", handleKeyDown);
@@ -112,6 +114,8 @@ export default function ThumbnailCaptureModal({
       // Reset state when modal opens
       setZoom(1);
       setPosition({ x: 0, y: 0 });
+      setCaptureSize({ width: 300, height: 225 });
+      setIframeLoaded(false);
     }
 
     return () => {
@@ -130,23 +134,71 @@ export default function ThumbnailCaptureModal({
 
   // Handle dragging
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0) {
+    if (e.button === 0 && !isResizing) {
       setIsDragging(true);
       setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isDragging && !isResizing) {
       setPosition({
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y,
       });
+    } else if (isResizing) {
+      const deltaX = e.clientX - resizeStart.mouseX;
+      const deltaY = e.clientY - resizeStart.mouseY;
+      
+      let newWidth = resizeStart.width;
+      let newHeight = resizeStart.height;
+      
+      // Handle resize based on which handle is being dragged
+      if (isResizing.includes('e')) {
+        newWidth = Math.min(MAX_SIZE, Math.max(MIN_SIZE, resizeStart.width + deltaX * 2));
+      }
+      if (isResizing.includes('w')) {
+        newWidth = Math.min(MAX_SIZE, Math.max(MIN_SIZE, resizeStart.width - deltaX * 2));
+      }
+      if (isResizing.includes('s')) {
+        newHeight = Math.min(MAX_SIZE, Math.max(MIN_SIZE, resizeStart.height + deltaY * 2));
+      }
+      if (isResizing.includes('n')) {
+        newHeight = Math.min(MAX_SIZE, Math.max(MIN_SIZE, resizeStart.height - deltaY * 2));
+      }
+      
+      setCaptureSize({ width: Math.round(newWidth), height: Math.round(newHeight) });
     }
-  };
+  }, [isDragging, isResizing, dragStart, resizeStart]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
+    setIsResizing(null);
+  }, []);
+
+  // Add global mouse event listeners for drag and resize
+  useEffect(() => {
+    if (isDragging || isResizing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
+
+  // Handle resize start
+  const handleResizeStart = (e: React.MouseEvent, direction: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsResizing(direction);
+    setResizeStart({
+      width: captureSize.width,
+      height: captureSize.height,
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+    });
   };
 
   // Handle wheel zoom
@@ -158,47 +210,205 @@ export default function ThumbnailCaptureModal({
     }
   };
 
-  // Capture thumbnail
-  const handleCapture = async () => {
-    if (!previewRef.current || !captureAreaRef.current) return;
+  // Handle manual size input
+  const handleSizeChange = (dimension: 'width' | 'height', value: string) => {
+    const numValue = parseInt(value, 10);
+    if (!isNaN(numValue)) {
+      const clampedValue = Math.min(MAX_SIZE, Math.max(MIN_SIZE, numValue));
+      setCaptureSize(prev => ({ ...prev, [dimension]: clampedValue }));
+    }
+  };
 
-    setIsCapturing(true);
+  // Capture thumbnail using fallback method (creates a hidden container and captures it)
+  const captureWithFallback = useCallback(async (): Promise<Blob | null> => {
+    // Create a temporary hidden container with the content rendered directly
+    const tempContainer = document.createElement("div");
+    tempContainer.style.position = "absolute";
+    tempContainer.style.left = "-9999px";
+    tempContainer.style.top = "-9999px";
+    tempContainer.style.width = `${PREVIEW_WIDTH}px`;
+    tempContainer.style.height = `${PREVIEW_HEIGHT}px`;
+    tempContainer.style.background = "#ffffff";
+    tempContainer.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+    tempContainer.style.padding = "16px";
+    tempContainer.style.overflow = "hidden";
+    tempContainer.style.boxSizing = "border-box";
+    
+    // Add CSS via style element
+    const styleEl = document.createElement("style");
+    styleEl.textContent = `
+      .temp-capture-container * {
+        box-sizing: border-box;
+      }
+      ${css}
+    `;
+    tempContainer.appendChild(styleEl);
+    
+    // Add HTML content
+    const contentDiv = document.createElement("div");
+    contentDiv.className = "temp-capture-container";
+    contentDiv.innerHTML = html;
+    tempContainer.appendChild(contentDiv);
+    
+    document.body.appendChild(tempContainer);
+    
+    // Wait for styles to apply and fonts to load
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
     try {
-      // Get the capture area's bounding rect relative to the preview container
-      const captureRect = captureAreaRef.current.getBoundingClientRect();
-      const previewRect = previewRef.current.getBoundingClientRect();
-
-      // Calculate the position relative to the preview
-      const x = captureRect.left - previewRect.left;
-      const y = captureRect.top - previewRect.top;
-
-      // Use html2canvas to capture the entire preview area
-      const canvas = await html2canvas(previewRef.current, {
+      const canvas = await html2canvas(tempContainer, {
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
-        scale: 2, // Higher resolution
+        scale: 2,
         logging: false,
       });
-
-      // Create a new canvas for the cropped area
-      const croppedCanvas = document.createElement("canvas");
-      croppedCanvas.width = captureSize.width;
-      croppedCanvas.height = captureSize.height;
-      const ctx = croppedCanvas.getContext("2d");
-
+      
+      // Calculate capture coordinates
+      const captureHalfWidth = captureSize.width / 2;
+      const captureHalfHeight = captureSize.height / 2;
+      const iframeX = PREVIEW_WIDTH / 2 - position.x / zoom;
+      const iframeY = PREVIEW_HEIGHT / 2 - position.y / zoom;
+      const captureStartX = iframeX - captureHalfWidth / zoom;
+      const captureStartY = iframeY - captureHalfHeight / zoom;
+      const captureWidthInIframe = captureSize.width / zoom;
+      const captureHeightInIframe = captureSize.height / zoom;
+      
+      const thumbnailCanvas = document.createElement("canvas");
+      thumbnailCanvas.width = captureSize.width;
+      thumbnailCanvas.height = captureSize.height;
+      const ctx = thumbnailCanvas.getContext("2d");
+      
       if (ctx) {
-        // Calculate the scale factor used by html2canvas
-        const scaleX = canvas.width / previewRect.width;
-        const scaleY = canvas.height / previewRect.height;
-
-        // Draw the cropped area
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, captureSize.width, captureSize.height);
+        
+        const canvasScaleX = canvas.width / PREVIEW_WIDTH;
+        const canvasScaleY = canvas.height / PREVIEW_HEIGHT;
+        
+        const srcX = Math.max(0, captureStartX * canvasScaleX);
+        const srcY = Math.max(0, captureStartY * canvasScaleY);
+        const srcWidth = captureWidthInIframe * canvasScaleX;
+        const srcHeight = captureHeightInIframe * canvasScaleY;
+        
         ctx.drawImage(
           canvas,
-          x * scaleX,
-          y * scaleY,
-          captureSize.width * scaleX,
-          captureSize.height * scaleY,
+          srcX,
+          srcY,
+          srcWidth,
+          srcHeight,
+          0,
+          0,
+          captureSize.width,
+          captureSize.height
+        );
+        
+        return new Promise((resolve) => {
+          thumbnailCanvas.toBlob(
+            (blob) => {
+              resolve(blob);
+            },
+            "image/png",
+            1.0
+          );
+        });
+      }
+      return null;
+    } finally {
+      document.body.removeChild(tempContainer);
+    }
+  }, [css, html, captureSize, position, zoom]);
+
+  // Capture thumbnail using the iframe content
+  const handleCapture = async () => {
+    if (!previewContainerRef.current || !captureAreaRef.current || !iframeRef.current) return;
+
+    setIsCapturing(true);
+    try {
+      // Wait a moment to ensure content is fully rendered
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const iframe = iframeRef.current;
+      const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
+      
+      let canvas: HTMLCanvasElement | null = null;
+      
+      // Try to capture from iframe first
+      if (iframeDocument && iframeDocument.body) {
+        try {
+          canvas = await html2canvas(iframeDocument.body, {
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: "#ffffff",
+            scale: 2, // Higher resolution for quality
+            logging: false,
+            width: PREVIEW_WIDTH,
+            height: PREVIEW_HEIGHT,
+            windowWidth: PREVIEW_WIDTH,
+            windowHeight: PREVIEW_HEIGHT,
+          });
+        } catch (iframeError) {
+          console.warn("Could not capture iframe directly, using fallback:", iframeError);
+        }
+      }
+
+      // If iframe capture failed, use fallback
+      if (!canvas) {
+        const fallbackBlob = await captureWithFallback();
+        if (fallbackBlob) {
+          onCapture(fallbackBlob);
+        }
+        return;
+      }
+
+      // Calculate the capture coordinates
+      const captureHalfWidth = captureSize.width / 2;
+      const captureHalfHeight = captureSize.height / 2;
+      
+      // The center of visible iframe content (in iframe coordinates) based on position
+      const iframeCenterInViewX = PREVIEW_WIDTH / 2;
+      const iframeCenterInViewY = PREVIEW_HEIGHT / 2;
+      
+      // In iframe coordinates, container center corresponds to:
+      const iframeX = iframeCenterInViewX - position.x / zoom;
+      const iframeY = iframeCenterInViewY - position.y / zoom;
+      
+      // Top-left of capture area in iframe coordinates
+      const captureStartX = iframeX - captureHalfWidth / zoom;
+      const captureStartY = iframeY - captureHalfHeight / zoom;
+      
+      // Width and height to capture from iframe (in iframe pixels)
+      const captureWidthInIframe = captureSize.width / zoom;
+      const captureHeightInIframe = captureSize.height / zoom;
+
+      // Create the final thumbnail canvas
+      const thumbnailCanvas = document.createElement("canvas");
+      thumbnailCanvas.width = captureSize.width;
+      thumbnailCanvas.height = captureSize.height;
+      const ctx = thumbnailCanvas.getContext("2d");
+
+      if (ctx) {
+        // Fill with white background first
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, captureSize.width, captureSize.height);
+
+        // Calculate scale factor from html2canvas
+        const canvasScaleX = canvas.width / PREVIEW_WIDTH;
+        const canvasScaleY = canvas.height / PREVIEW_HEIGHT;
+
+        // Source coordinates in the captured canvas
+        const srcX = Math.max(0, captureStartX * canvasScaleX);
+        const srcY = Math.max(0, captureStartY * canvasScaleY);
+        const srcWidth = captureWidthInIframe * canvasScaleX;
+        const srcHeight = captureHeightInIframe * canvasScaleY;
+
+        // Draw the cropped area to the thumbnail canvas
+        ctx.drawImage(
+          canvas,
+          srcX,
+          srcY,
+          srcWidth,
+          srcHeight,
           0,
           0,
           captureSize.width,
@@ -206,7 +416,7 @@ export default function ThumbnailCaptureModal({
         );
 
         // Convert to blob
-        croppedCanvas.toBlob(
+        thumbnailCanvas.toBlob(
           (blob) => {
             if (blob) {
               onCapture(blob);
@@ -218,6 +428,16 @@ export default function ThumbnailCaptureModal({
       }
     } catch (error) {
       console.error("Failed to capture thumbnail:", error);
+      
+      // Fallback: Try a simpler capture method
+      try {
+        const fallbackBlob = await captureWithFallback();
+        if (fallbackBlob) {
+          onCapture(fallbackBlob);
+        }
+      } catch (fallbackError) {
+        console.error("Fallback capture also failed:", fallbackError);
+      }
     } finally {
       setIsCapturing(false);
     }
@@ -225,8 +445,13 @@ export default function ThumbnailCaptureModal({
 
   if (!isOpen) return null;
 
+  // Resize handle styles
+  const resizeHandleClass = "absolute bg-[#5B50E8] hover:bg-[#7b72ff] transition-colors z-10";
+  const cornerHandleClass = `${resizeHandleClass} w-3 h-3 rounded-sm`;
+  const edgeHandleClass = resizeHandleClass;
+
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center">
+    <div className="fixed inset-0 z-1000 flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
@@ -287,46 +512,47 @@ export default function ThumbnailCaptureModal({
             </div>
           </div>
 
-          {/* Thumbnail Size Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-gray-400 text-sm">Thumbnail Size:</span>
-            <select
-              value={`${captureSize.width}x${captureSize.height}`}
-              onChange={(e) => {
-                const [w, h] = e.target.value.split("x").map(Number);
-                setCaptureSize({ label: "", width: w, height: h });
-              }}
-              className="bg-gray-700 text-white text-sm px-3 py-1.5 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#5B50E8] focus:border-transparent"
-            >
-              {THUMBNAIL_SIZES.map((size) => (
-                <option
-                  key={`${size.width}x${size.height}`}
-                  value={`${size.width}x${size.height}`}
-                >
-                  {size.label} ({size.width}×{size.height})
-                </option>
-              ))}
-            </select>
+          {/* Thumbnail Size Input */}
+          <div className="flex items-center gap-3">
+            <span className="text-gray-400 text-sm">Capture Size:</span>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                value={captureSize.width}
+                onChange={(e) => handleSizeChange('width', e.target.value)}
+                min={MIN_SIZE}
+                max={MAX_SIZE}
+                className="w-16 bg-gray-700 text-white text-sm px-2 py-1.5 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#5B50E8] focus:border-transparent text-center"
+              />
+              <span className="text-gray-400">×</span>
+              <input
+                type="number"
+                value={captureSize.height}
+                onChange={(e) => handleSizeChange('height', e.target.value)}
+                min={MIN_SIZE}
+                max={MAX_SIZE}
+                className="w-16 bg-gray-700 text-white text-sm px-2 py-1.5 rounded-lg border border-gray-600 focus:ring-2 focus:ring-[#5B50E8] focus:border-transparent text-center"
+              />
+              <span className="text-gray-500 text-xs ml-1">px</span>
+            </div>
+            <span className="text-gray-500 text-xs">(drag corners to resize)</span>
           </div>
         </div>
 
         {/* Preview Area with Capture Frame */}
         <div
+          ref={previewContainerRef}
           className="flex-1 relative overflow-hidden bg-gray-700"
           onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
           onWheel={handleWheel}
-          style={{ cursor: isDragging ? "grabbing" : "grab" }}
+          style={{ cursor: isDragging ? "grabbing" : isResizing ? "nwse-resize" : "grab" }}
         >
-          {/* Preview Container */}
+          {/* Iframe Preview Container */}
           <div
-            ref={previewRef}
-            className="absolute bg-white"
+            className="absolute bg-white overflow-hidden"
             style={{
-              width: "800px",
-              height: "600px",
+              width: `${PREVIEW_WIDTH}px`,
+              height: `${PREVIEW_HEIGHT}px`,
               left: `calc(50% + ${position.x}px)`,
               top: `calc(50% + ${position.y}px)`,
               transform: `translate(-50%, -50%) scale(${zoom})`,
@@ -336,16 +562,18 @@ export default function ThumbnailCaptureModal({
             <iframe
               ref={iframeRef}
               title="Thumbnail Preview"
-              className="w-full h-full border-0"
               srcDoc={srcdoc}
-              sandbox="allow-scripts"
+              onLoad={handleIframeLoad}
+              className="w-full h-full border-0"
+              style={{ pointerEvents: "none" }}
+              sandbox="allow-scripts allow-same-origin"
             />
           </div>
 
-          {/* Capture Area Overlay */}
+          {/* Capture Area Overlay with Resize Handles */}
           <div
             ref={captureAreaRef}
-            className="absolute pointer-events-none"
+            className="absolute"
             style={{
               width: captureSize.width,
               height: captureSize.height,
@@ -354,17 +582,47 @@ export default function ThumbnailCaptureModal({
               transform: "translate(-50%, -50%)",
             }}
           >
-            {/* Clear area in center */}
-            <div className="w-full h-full border-2 border-[#5B50E8] border-dashed bg-transparent" />
+            {/* Clear area border */}
+            <div className="w-full h-full border-2 border-[#5B50E8] bg-transparent pointer-events-none" />
             
-            {/* Corner markers */}
-            <div className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-[#5B50E8]" />
-            <div className="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-[#5B50E8]" />
-            <div className="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-[#5B50E8]" />
-            <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-[#5B50E8]" />
+            {/* Corner Resize Handles */}
+            <div
+              className={`${cornerHandleClass} -top-1.5 -left-1.5 cursor-nwse-resize`}
+              onMouseDown={(e) => handleResizeStart(e, 'nw')}
+            />
+            <div
+              className={`${cornerHandleClass} -top-1.5 -right-1.5 cursor-nesw-resize`}
+              onMouseDown={(e) => handleResizeStart(e, 'ne')}
+            />
+            <div
+              className={`${cornerHandleClass} -bottom-1.5 -left-1.5 cursor-nesw-resize`}
+              onMouseDown={(e) => handleResizeStart(e, 'sw')}
+            />
+            <div
+              className={`${cornerHandleClass} -bottom-1.5 -right-1.5 cursor-nwse-resize`}
+              onMouseDown={(e) => handleResizeStart(e, 'se')}
+            />
+            
+            {/* Edge Resize Handles */}
+            <div
+              className={`${edgeHandleClass} top-1/2 -left-1 -translate-y-1/2 w-2 h-8 rounded-sm cursor-ew-resize`}
+              onMouseDown={(e) => handleResizeStart(e, 'w')}
+            />
+            <div
+              className={`${edgeHandleClass} top-1/2 -right-1 -translate-y-1/2 w-2 h-8 rounded-sm cursor-ew-resize`}
+              onMouseDown={(e) => handleResizeStart(e, 'e')}
+            />
+            <div
+              className={`${edgeHandleClass} -top-1 left-1/2 -translate-x-1/2 w-8 h-2 rounded-sm cursor-ns-resize`}
+              onMouseDown={(e) => handleResizeStart(e, 'n')}
+            />
+            <div
+              className={`${edgeHandleClass} -bottom-1 left-1/2 -translate-x-1/2 w-8 h-2 rounded-sm cursor-ns-resize`}
+              onMouseDown={(e) => handleResizeStart(e, 's')}
+            />
             
             {/* Size label */}
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-[#5B50E8] text-white text-xs rounded">
+            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-[#5B50E8] text-white text-xs rounded pointer-events-none">
               {captureSize.width} × {captureSize.height}
             </div>
           </div>
@@ -379,12 +637,22 @@ export default function ThumbnailCaptureModal({
               `,
             }}
           />
+
+          {/* Loading indicator */}
+          {!iframeLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-800/50">
+              <div className="text-white text-sm">Loading preview...</div>
+            </div>
+          )}
         </div>
+
+        {/* Hidden container for fallback capture */}
+        <div ref={hiddenContainerRef} style={{ display: 'none' }} />
 
         {/* Footer */}
         <div className="px-4 py-3 bg-gray-800 border-t border-gray-700 flex items-center justify-between">
           <span className="text-gray-400 text-sm">
-            Position the component preview within the capture frame, then click Capture
+            Drag edges or corners to resize the capture area freely
           </span>
           <div className="flex items-center gap-3">
             <button
@@ -395,7 +663,7 @@ export default function ThumbnailCaptureModal({
             </button>
             <button
               onClick={handleCapture}
-              disabled={isCapturing}
+              disabled={isCapturing || !iframeLoaded}
               className="flex items-center gap-2 px-6 py-2 bg-[#5B50E8] text-white rounded-lg hover:bg-[#4a41c7] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Camera className="w-4 h-4" />
