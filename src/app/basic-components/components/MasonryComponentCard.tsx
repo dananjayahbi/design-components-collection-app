@@ -12,6 +12,7 @@ import {
   Check,
   Eye,
   Layers,
+  ImageOff,
 } from "lucide-react";
 import type { BasicComponent } from "../hooks/useBasicComponents";
 
@@ -22,9 +23,11 @@ interface MasonryComponentCardProps {
   onOpen?: (component: BasicComponent) => void;
 }
 
-// Height constraints for the preview area
+// Height constraints for the preview area (used for fallback iframe)
 const MIN_PREVIEW_HEIGHT = 150;
 const MAX_PREVIEW_HEIGHT = 600;
+// Fixed height for thumbnail display
+const THUMBNAIL_HEIGHT = 200;
 
 function MasonryComponentCardComponent({
   component,
@@ -38,9 +41,13 @@ function MasonryComponentCardComponent({
   const [hasRendered, setHasRendered] = useState(false);
   const [previewHeight, setPreviewHeight] = useState(MIN_PREVIEW_HEIGHT);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [thumbnailError, setThumbnailError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Check if component has a valid thumbnail
+  const hasThumbnail = component.thumbnailUrl && !thumbnailError;
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -191,12 +198,21 @@ function MasonryComponentCardComponent({
       ref={containerRef}
       className="group relative bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-[#5B50E8]/50 hover:shadow-xl transition-all duration-300 break-inside-avoid mb-4"
     >
-      {/* Preview Area - Fixed width (from CSS columns), dynamic height based on content */}
+      {/* Preview Area - Shows thumbnail if available, otherwise falls back to iframe */}
       <div
         className="relative bg-white overflow-hidden"
-        style={{ height: `${previewHeight}px` }}
+        style={{ height: hasThumbnail ? `${THUMBNAIL_HEIGHT}px` : `${previewHeight}px` }}
       >
-        {isVisible || hasRendered ? (
+        {hasThumbnail ? (
+          /* Thumbnail Display */
+          <img
+            src={component.thumbnailUrl!}
+            alt={`Preview of ${component.name}`}
+            className="w-full h-full object-cover object-top"
+            loading="lazy"
+            onError={() => setThumbnailError(true)}
+          />
+        ) : isVisible || hasRendered ? (
           <iframe
             ref={iframeRef}
             srcDoc={generatePreviewHtml()}
@@ -272,11 +288,11 @@ function MasonryComponentCardComponent({
             {showMenu && (
               <>
                 <div
-                  className="fixed inset-0 z-[999]"
+                  className="fixed inset-0 z-999"
                   onClick={() => setShowMenu(false)}
                 />
                 <div 
-                  className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-[1000] py-1 min-w-[140px]"
+                  className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-1000 py-1 min-w-[140px]"
                   style={{ top: menuPosition.top, left: menuPosition.left }}
                 >
                   <button

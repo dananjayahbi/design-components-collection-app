@@ -11,6 +11,7 @@ export interface BasicComponent {
   javascript: string;
   tags: string[];
   isFavorite: boolean;
+  thumbnailUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }

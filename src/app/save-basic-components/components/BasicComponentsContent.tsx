@@ -7,6 +7,7 @@ import SandboxPreview from "./SandboxPreview";
 import SaveComponentModal from "./SaveComponentModal";
 import FullScreenEditorModal from "./FullScreenEditorModal";
 import FullScreenPreviewModal from "./FullScreenPreviewModal";
+import ThumbnailCaptureModal from "./ThumbnailCaptureModal";
 import { Copy, Check, RotateCcw, Trash2, Save, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
@@ -89,6 +90,14 @@ export default function BasicComponentsContent() {
   }>({ isOpen: false, language: "html", label: "HTML" });
   const [showFullScreenPreview, setShowFullScreenPreview] = useState(false);
   const [isLoadingComponent, setIsLoadingComponent] = useState(false);
+  
+  // Thumbnail capture modal state
+  const [showThumbnailCapture, setShowThumbnailCapture] = useState(false);
+  const [pendingSaveData, setPendingSaveData] = useState<{
+    name: string;
+    description: string;
+    tags: string[];
+  } | null>(null);
 
   // Load component from localStorage when editing, or fetch from API on refresh
   useEffect(() => {
@@ -186,7 +195,8 @@ export default function BasicComponentsContent() {
   const handleSaveComponent = async (
     name: string,
     description: string,
-    tags: string[]
+    tags: string[],
+    thumbnailUrl?: string
   ) => {
     setIsSaving(true);
     try {
@@ -203,6 +213,7 @@ export default function BasicComponentsContent() {
             css,
             javascript,
             tags,
+            ...(thumbnailUrl && { thumbnailUrl }),
           }
         : {
             name,
@@ -211,6 +222,7 @@ export default function BasicComponentsContent() {
             css,
             javascript,
             tags,
+            ...(thumbnailUrl && { thumbnailUrl }),
           };
 
       const response = await fetch(url, {
@@ -246,6 +258,56 @@ export default function BasicComponentsContent() {
       console.error("Error saving component:", error);
       toast.error(
         error instanceof Error ? error.message : "Failed to save component"
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle initiating thumbnail capture flow
+  const handleCaptureThumbail = (name: string, description: string, tags: string[]) => {
+    setPendingSaveData({ name, description, tags });
+    setShowSaveModal(false);
+    setShowThumbnailCapture(true);
+  };
+
+  // Handle thumbnail capture completion
+  const handleThumbnailCaptured = async (thumbnailBlob: Blob) => {
+    if (!pendingSaveData) return;
+
+    setIsSaving(true);
+    try {
+      // Upload the thumbnail first
+      const formData = new FormData();
+      formData.append("thumbnail", thumbnailBlob, "thumbnail.png");
+
+      const uploadResponse = await fetch("/api/thumbnails", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Failed to upload thumbnail");
+      }
+
+      const { thumbnailUrl } = await uploadResponse.json();
+
+      // Close thumbnail capture modal
+      setShowThumbnailCapture(false);
+
+      // Now save the component with the thumbnail URL
+      await handleSaveComponent(
+        pendingSaveData.name,
+        pendingSaveData.description,
+        pendingSaveData.tags,
+        thumbnailUrl
+      );
+
+      setPendingSaveData(null);
+    } catch (error) {
+      console.error("Error capturing thumbnail:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to capture thumbnail"
       );
     } finally {
       setIsSaving(false);
@@ -368,12 +430,27 @@ export default function BasicComponentsContent() {
       <SaveComponentModal
         isOpen={showSaveModal}
         onClose={() => setShowSaveModal(false)}
-        onSave={handleSaveComponent}
+        onSave={(name, description, tags) => handleSaveComponent(name, description, tags)}
+        onCaptureThumbail={handleCaptureThumbail}
         isSaving={isSaving}
         initialName={editingComponent?.name || ""}
         initialDescription={editingComponent?.description || ""}
         initialTags={editingComponent?.tags || []}
         isEditing={!!editingComponent}
+      />
+
+      {/* Thumbnail Capture Modal */}
+      <ThumbnailCaptureModal
+        isOpen={showThumbnailCapture}
+        onClose={() => {
+          setShowThumbnailCapture(false);
+          setPendingSaveData(null);
+        }}
+        onCapture={handleThumbnailCaptured}
+        html={html}
+        css={css}
+        javascript={javascript}
+        componentName={pendingSaveData?.name || "Component"}
       />
 
       {/* Full Screen Editor Modal */}

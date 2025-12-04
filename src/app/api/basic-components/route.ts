@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, description, html, css, javascript, tags } = body;
+    const { name, description, html, css, javascript, tags, thumbnailUrl } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -102,6 +102,7 @@ export async function POST(request: Request) {
         css: css || "",
         javascript: javascript || "",
         tags: tags || [],
+        thumbnailUrl: thumbnailUrl || null,
       },
     });
 
@@ -125,7 +126,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { id, name, description, html, css, javascript, tags, isFavorite } =
+    const { id, name, description, html, css, javascript, tags, isFavorite, thumbnailUrl } =
       body;
 
     if (!id) {
@@ -157,6 +158,7 @@ export async function PATCH(request: Request) {
         ...(javascript !== undefined && { javascript }),
         ...(tags !== undefined && { tags }),
         ...(isFavorite !== undefined && { isFavorite }),
+        ...(thumbnailUrl !== undefined && { thumbnailUrl }),
       },
     });
 

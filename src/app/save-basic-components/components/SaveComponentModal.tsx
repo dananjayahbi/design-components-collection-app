@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Save, Tag, Plus } from "lucide-react";
+import { X, Save, Tag, Plus, Camera } from "lucide-react";
 
 interface SaveComponentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (name: string, description: string, tags: string[]) => void;
+  onCaptureThumbail: (name: string, description: string, tags: string[]) => void;
   isSaving: boolean;
   initialName?: string;
   initialDescription?: string;
@@ -18,6 +19,7 @@ export default function SaveComponentModal({
   isOpen,
   onClose,
   onSave,
+  onCaptureThumbail,
   isSaving,
   initialName = "",
   initialDescription = "",
@@ -107,6 +109,12 @@ export default function SaveComponentModal({
     e.preventDefault();
     if (name.trim()) {
       onSave(name.trim(), description.trim(), tags);
+    }
+  };
+
+  const handleCaptureThumbnail = () => {
+    if (name.trim()) {
+      onCaptureThumbail(name.trim(), description.trim(), tags);
     }
   };
 
@@ -224,31 +232,51 @@ export default function SaveComponentModal({
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-col gap-3 pt-4">
+            {/* Capture Thumbnail Button */}
             <button
               type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
+              onClick={handleCaptureThumbnail}
               disabled={!name.trim() || isSaving}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-[#5B50E8] rounded-lg hover:bg-[#4a41c7] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSaving ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {isEditing ? "Updating..." : "Saving..."}
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  {isEditing ? "Update Component" : "Save Component"}
-                </>
-              )}
+              <Camera className="w-4 h-4" />
+              Capture Thumbnail & Save
             </button>
+            
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="text-xs text-gray-400">or</span>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
+            
+            {/* Quick Save without Thumbnail */}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!name.trim() || isSaving}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                    {isEditing ? "Updating..." : "Saving..."}
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    {isEditing ? "Update" : "Save"} (No Thumbnail)
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>
