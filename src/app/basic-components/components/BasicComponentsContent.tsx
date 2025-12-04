@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -14,6 +14,7 @@ import {
 import { toast } from "react-hot-toast";
 import { ComponentCard } from "./ComponentCard";
 import { MasonryComponentCard } from "./MasonryComponentCard";
+import { SkeletonGrid } from "./SkeletonCard";
 import { useBasicComponents, type BasicComponent } from "../hooks";
 import { ConfirmDialog } from "@/components/common";
 
@@ -22,10 +23,14 @@ export default function BasicComponentsContent() {
   const {
     components,
     isLoading,
+    isLoadingMore,
     error,
+    pagination,
     refetch,
     searchComponents,
+    loadMore,
     deleteComponent,
+    searchQuery: currentSearchQuery,
   } = useBasicComponents();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -39,6 +44,9 @@ export default function BasicComponentsContent() {
     componentId: "",
     componentName: "",
   });
+
+  // Ref for infinite scroll sentinel element
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Handle search
   const handleSearch = useCallback(
@@ -94,6 +102,30 @@ export default function BasicComponentsContent() {
     router.push("/save-basic-components");
   };
 
+  // Infinite scroll observer
+  useEffect(() => {
+    if (!sentinelRef.current || isLoading || isLoadingMore || !pagination?.hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && pagination?.hasMore && !isLoadingMore) {
+          loadMore();
+        }
+      },
+      {
+        root: null,
+        rootMargin: "100px",
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(sentinelRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [loadMore, isLoading, isLoadingMore, pagination?.hasMore]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -122,7 +154,7 @@ export default function BasicComponentsContent() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search components by name, description, or tags..."
+              placeholder="Search components by name or description..."
               className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5B50E8] focus:border-transparent transition-all"
             />
           </div>
@@ -133,6 +165,7 @@ export default function BasicComponentsContent() {
             onClick={() => refetch()}
             className="p-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             title="Refresh"
+            disabled={isLoading}
           >
             <RefreshCw
               className={`w-5 h-5 text-gray-600 ${isLoading ? "animate-spin" : ""}`}
@@ -167,12 +200,12 @@ export default function BasicComponentsContent() {
       </div>
 
       {/* Component Count */}
-      {components && (
+      {pagination && (
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <Package className="w-4 h-4" />
           <span>
-            {components.length} component{components.length !== 1 ? "s" : ""}{" "}
-            found
+            Showing {components.length} of {pagination.totalCount} component{pagination.totalCount !== 1 ? "s" : ""}
+            {currentSearchQuery && ` matching "${currentSearchQuery}"`}
           </span>
         </div>
       )}
@@ -191,12 +224,9 @@ export default function BasicComponentsContent() {
         </div>
       )}
 
-      {/* Loading State */}
+      {/* Initial Loading State - Skeleton Cards */}
       {isLoading && (
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="w-12 h-12 border-4 border-gray-200 border-t-[#5B50E8] rounded-full animate-spin" />
-          <p className="mt-4 text-gray-500">Loading components...</p>
-        </div>
+        <SkeletonGrid count={8} viewMode={viewMode} />
       )}
 
       {/* Empty State */}
@@ -206,19 +236,23 @@ export default function BasicComponentsContent() {
             <Package className="w-10 h-10 text-gray-400" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            No components yet
+            {currentSearchQuery ? "No components found" : "No components yet"}
           </h3>
           <p className="text-gray-500 text-center mb-6 max-w-md">
-            Get started by creating your first component in the sandbox. Build
-            HTML/CSS/JS components and save them here.
+            {currentSearchQuery
+              ? `No components match your search "${currentSearchQuery}". Try a different search term.`
+              : "Get started by creating your first component in the sandbox. Build HTML/CSS/JS components and save them here."
+            }
           </p>
-          <button
-            onClick={handleCreateNew}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#5B50E8] text-white rounded-lg hover:bg-[#4a41c7] transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Create Your First Component
-          </button>
+          {!currentSearchQuery && (
+            <button
+              onClick={handleCreateNew}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#5B50E8] text-white rounded-lg hover:bg-[#4a41c7] transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Create Your First Component
+            </button>
+          )}
         </div>
       )}
 
@@ -248,6 +282,30 @@ export default function BasicComponentsContent() {
                   onOpen={handleOpenComponent}
                 />
               ))}
+            </div>
+          )}
+
+          {/* Load More Skeleton Cards when scrolling */}
+          {isLoadingMore && (
+            <div className="mt-6">
+              <SkeletonGrid count={4} viewMode={viewMode} />
+            </div>
+          )}
+
+          {/* Infinite scroll sentinel */}
+          {pagination?.hasMore && !isLoadingMore && (
+            <div 
+              ref={sentinelRef} 
+              className="h-10 flex items-center justify-center"
+            >
+              <span className="text-sm text-gray-400">Scroll to load more...</span>
+            </div>
+          )}
+
+          {/* End of results message */}
+          {!pagination?.hasMore && components.length > 0 && (
+            <div className="py-6 text-center text-sm text-gray-500">
+              You&apos;ve reached the end • {pagination?.totalCount} total components
             </div>
           )}
         </>
