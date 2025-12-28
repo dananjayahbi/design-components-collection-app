@@ -74,3 +74,19 @@ model BasicComponent {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+// Model for storing React component code snippets
+// Uses TEXT type to support very long code (1000+ lines)
+// React components use JSX/TSX and CSS for styling
+model ReactComponent {
+  id            String   @id @default(cuid())
+  name          String   // Component name for identification
+  description   String?  // Optional description of the component
+  componentCode String   @db.Text // React component code (JSX/TSX)
+  cssCode       String   @db.Text // CSS/SCSS code for styling
+  tags          String[] // Tags for categorization
+  isFavorite    Boolean  @default(false)
+  thumbnailUrl  String?  // URL/path to thumbnail image
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
