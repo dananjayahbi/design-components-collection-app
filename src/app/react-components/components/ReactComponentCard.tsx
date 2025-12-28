@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Edit, Trash2, ExternalLink, Code } from "lucide-react";
 import type { ReactComponent } from "../hooks";
 import {
   SandpackProvider,
   SandpackPreview,
+  SandpackLayout,
 } from "@codesandbox/sandpack-react";
 
 interface ReactComponentCardProps {
@@ -21,6 +22,26 @@ export default function ReactComponentCard({
 }: ReactComponentCardProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState<number | null>(null);
+
+  // Measure container height dynamically when showing preview
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !showPreview) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerHeight(entry.contentRect.height);
+      }
+    });
+
+    resizeObserver.observe(container);
+    // Initial measurement
+    setContainerHeight(container.clientHeight);
+
+    return () => resizeObserver.disconnect();
+  }, [showPreview]);
 
   // Build dependency object for Sandpack
   const sandpackDependencies: Record<string, string> = {};
@@ -67,8 +88,8 @@ export default function ReactComponentCard({
   return (
     <div className="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
       {/* Preview Area */}
-      <div className="relative aspect-video bg-gray-50 overflow-hidden">
-        {showPreview ? (
+      <div ref={containerRef} className="relative aspect-video bg-gray-50 overflow-hidden">
+        {showPreview && containerHeight !== null && containerHeight > 0 ? (
           // Live React Preview with Sandpack
           <SandpackProvider
             template="react"
@@ -83,12 +104,19 @@ export default function ReactComponentCard({
             }}
             theme="light"
           >
-            <SandpackPreview
-              showOpenInCodeSandbox={false}
-              showRefreshButton={false}
-              style={{ height: "100%" }}
-            />
+            <SandpackLayout style={{ height: containerHeight }}>
+              <SandpackPreview
+                showOpenInCodeSandbox={false}
+                showRefreshButton={false}
+                style={{ height: containerHeight, width: "100%" }}
+              />
+            </SandpackLayout>
           </SandpackProvider>
+        ) : showPreview ? (
+          // Loading state while measuring
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-gray-400">Loading...</span>
+          </div>
         ) : component.thumbnailUrl && !imageError ? (
           // Thumbnail Image
           <img

@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { Maximize2, RefreshCw } from "lucide-react";
 import {
   SandpackProvider,
   SandpackPreview,
+  SandpackLayout,
 } from "@codesandbox/sandpack-react";
 
 interface ReactSandboxPreviewProps {
@@ -21,10 +22,30 @@ export default function ReactSandboxPreview({
   onExpand,
 }: ReactSandboxPreviewProps) {
   const [key, setKey] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState<number | null>(null);
 
   // Force refresh the preview
   const handleRefresh = useCallback(() => {
     setKey(prev => prev + 1);
+  }, []);
+
+  // Measure container height dynamically
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerHeight(entry.contentRect.height);
+      }
+    });
+
+    resizeObserver.observe(container);
+    // Initial measurement
+    setContainerHeight(container.clientHeight);
+
+    return () => resizeObserver.disconnect();
   }, []);
 
   // Build dependency object for Sandpack
@@ -115,28 +136,35 @@ export default function ReactSandboxPreview({
         </div>
       </div>
 
-      {/* Sandpack Preview */}
-      <div className="flex-1 min-h-0">
-        <SandpackProvider
-          key={key}
-          template="react"
-          files={files}
-          customSetup={{
-            dependencies: sandpackDependencies,
-          }}
-          options={{
-            recompileMode: "delayed",
-            recompileDelay: 1000,
-            externalResources: ["https://cdn.tailwindcss.com"],
-          }}
-          theme="light"
-        >
-          <SandpackPreview
-            showOpenInCodeSandbox={false}
-            showRefreshButton={false}
-            style={{ height: "100%" }}
-          />
-        </SandpackProvider>
+      {/* Sandpack Preview - dynamically sized */}
+      <div 
+        ref={containerRef}
+        className="flex-1 min-h-0 overflow-hidden"
+      >
+        {containerHeight !== null && containerHeight > 0 && (
+          <SandpackProvider
+            key={key}
+            template="react"
+            files={files}
+            customSetup={{
+              dependencies: sandpackDependencies,
+            }}
+            options={{
+              recompileMode: "delayed",
+              recompileDelay: 1000,
+              externalResources: ["https://cdn.tailwindcss.com"],
+            }}
+            theme="light"
+          >
+            <SandpackLayout style={{ height: containerHeight }}>
+              <SandpackPreview
+                showOpenInCodeSandbox={false}
+                showRefreshButton={false}
+                style={{ height: containerHeight, width: "100%" }}
+              />
+            </SandpackLayout>
+          </SandpackProvider>
+        )}
       </div>
     </div>
   );
