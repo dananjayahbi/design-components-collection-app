@@ -385,7 +385,7 @@ export default function ReactThumbnailCaptureModal({
               title="Thumbnail Preview"
               className="w-full h-full"
               srcDoc={srcdoc}
-              sandbox="allow-scripts"
+              sandbox="allow-scripts allow-same-origin"
               onLoad={handleIframeLoad}
             />
           </div>

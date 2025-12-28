@@ -85,8 +85,11 @@ export function generateSandboxHtml(
 ): string {
   const deps = dependencies.map(name => getDependencyByName(name)).filter(Boolean) as DependencyConfig[];
   
-  // Separate Tailwind from other dependencies
-  const hasTailwind = deps.some(d => d.name === 'tailwindcss');
+  // Always include Tailwind for React components as it's very commonly used
+  // Check if Tailwind classes are present in the code
+  const tailwindPatterns = /\b(bg-|text-|flex|grid|p-|m-|w-|h-|rounded|border|shadow|hover:|focus:|sm:|md:|lg:|xl:|dark:)/;
+  const hasTailwindClasses = tailwindPatterns.test(componentCode);
+  const hasTailwind = deps.some(d => d.name === 'tailwindcss') || hasTailwindClasses;
   const umdDeps = deps.filter(d => d.name !== 'tailwindcss');
   
   // Generate script tags for UMD dependencies
@@ -113,16 +116,50 @@ export function generateSandboxHtml(
     processedCode = processedCode.replace(pattern, '');
   }
   
+  // Remove export default statements (they're not valid in non-module scripts)
+  // e.g., "export default ComponentName;" or "export default function ComponentName"
+  processedCode = processedCode.replace(/export\s+default\s+([A-Z][a-zA-Z0-9]*)\s*;?/g, '');
+  processedCode = processedCode.replace(/export\s+default\s+function\s+/g, 'function ');
+  processedCode = processedCode.replace(/export\s+default\s+class\s+/g, 'class ');
+  processedCode = processedCode.replace(/export\s+default\s+const\s+/g, 'const ');
+  
   // Clean up whitespace
   processedCode = processedCode.trim();
   
   // Generate global destructuring for dependencies
   const globalSetup = umdDeps.map(d => {
     if (d.name === 'lucide-react') {
-      // lucide-react exposes icons on window.lucideReact
+      // Extract all icons being imported from the original code
+      const iconImportMatch = componentCode.match(/import\s*\{([^}]+)\}\s*from\s*['"]lucide-react['"]/);
+      let destructureStatements: string[] = [];
+      let iconNames: string[] = [...d.commonImports];
+      
+      if (iconImportMatch) {
+        // Parse the import statement to get icon names and aliases
+        const imports = iconImportMatch[1].split(',').map(s => s.trim()).filter(s => s.length > 0);
+        
+        for (const imp of imports) {
+          // Handle "Icon as Alias" pattern
+          const asMatch = imp.match(/^([A-Z][a-zA-Z0-9]*)\s+as\s+([A-Za-z][a-zA-Z0-9]*)$/);
+          if (asMatch) {
+            const [, originalName, aliasName] = asMatch;
+            iconNames.push(originalName);
+            // Create both the original and the alias - LucideReact uses capital L
+            destructureStatements.push(`const ${aliasName} = window.LucideReact?.${originalName};`);
+          } else if (/^[A-Z]/.test(imp)) {
+            iconNames.push(imp);
+          }
+        }
+      }
+      
+      // Remove duplicates
+      iconNames = [...new Set(iconNames)];
+      
+      // lucide-react UMD exposes icons on window.LucideReact (capital L)
       return `
-      // Destructure all lucide icons from global
-      const { ${d.commonImports.join(', ')} } = window.lucideReact || {};`;
+      // Destructure lucide icons from global (LucideReact with capital L)
+      const { ${iconNames.join(', ')} } = window.LucideReact || {};
+      ${destructureStatements.join('\n      ')}`;
     } else if (d.name === 'clsx') {
       return `
       // clsx is available as window.clsx
@@ -138,6 +175,10 @@ export function generateSandboxHtml(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script>
+    // Shim for lucide-react UMD which expects window.react (lowercase)
+    window.react = window.React;
+  </script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   ${hasTailwind ? '<script src="https://cdn.tailwindcss.com"></script>' : ''}
   ${depScriptTags}
@@ -174,31 +215,47 @@ export function generateSandboxHtml(
       
       const root = ReactDOM.createRoot(document.getElementById('root'));
       
-      // Try to render known component names
+      // Try to render known component names first
       if (typeof App !== 'undefined') {
         root.render(<App />);
+      } else if (typeof AnalogClockPicker !== 'undefined') {
+        root.render(<AnalogClockPicker />);
       } else if (typeof Calendar !== 'undefined') {
         root.render(<Calendar />);
       } else if (typeof Component !== 'undefined') {
         root.render(<Component />);
       } else if (typeof Default !== 'undefined') {
         root.render(<Default />);
+      } else if (typeof Card !== 'undefined') {
+        root.render(<Card />);
+      } else if (typeof Button !== 'undefined') {
+        root.render(<Button />);
+      } else if (typeof Modal !== 'undefined') {
+        root.render(<Modal />);
+      } else if (typeof Form !== 'undefined') {
+        root.render(<Form />);
       } else {
-        // Try to find any exported component
+        // Try to find any component from the code by regex
         const code = ${JSON.stringify(processedCode)};
-        const match = code.match(/(?:const|function|class)\\s+([A-Z][a-zA-Z0-9]*)\\s*[=({]/);
-        if (match) {
-          const componentName = match[1];
-          if (typeof window[componentName] !== 'undefined') {
-            root.render(React.createElement(window[componentName]));
-          } else {
-            // The component might be in local scope, try eval
-            try {
-              const comp = eval(componentName);
+        
+        // Match const ComponentName = or function ComponentName or export default function ComponentName
+        const constMatch = code.match(/const\\s+([A-Z][a-zA-Z0-9]*)\\s*=/);
+        const funcMatch = code.match(/function\\s+([A-Z][a-zA-Z0-9]*)\\s*\\(/);
+        const exportMatch = code.match(/export\\s+default\\s+(?:function\\s+)?([A-Z][a-zA-Z0-9]*)/);
+        
+        const componentName = exportMatch?.[1] || constMatch?.[1] || funcMatch?.[1];
+        
+        if (componentName) {
+          try {
+            // Try to evaluate the component name to get the function reference
+            const comp = eval(componentName);
+            if (typeof comp === 'function') {
               root.render(React.createElement(comp));
-            } catch {
-              throw new Error('Component "' + componentName + '" found but not accessible');
+            } else {
+              throw new Error('Component "' + componentName + '" is not a valid React component');
             }
+          } catch (evalError) {
+            throw new Error('Component "' + componentName + '" found but not accessible: ' + evalError.message);
           }
         } else {
           throw new Error('No React component found. Define a component like: const App = () => <div>Hello</div>');
@@ -246,6 +303,22 @@ export function detectDependenciesFromCode(code: string): string[] {
           detected.push(dep.name);
           break;
         }
+      }
+    }
+  }
+  
+  // Detect Tailwind CSS usage by looking for common Tailwind class patterns
+  // Common Tailwind patterns: bg-, text-, flex, grid, p-, m-, w-, h-, rounded, border, shadow, etc.
+  const tailwindPatterns = [
+    /className=["'][^"']*\b(bg-|text-|flex|grid|p-|m-|w-|h-|rounded|border|shadow|hover:|focus:|sm:|md:|lg:|xl:|dark:)/,
+    /className={[^}]*\b(bg-|text-|flex|grid|p-|m-|w-|h-|rounded|border|shadow)/,
+  ];
+  
+  if (!detected.includes('tailwindcss')) {
+    for (const pattern of tailwindPatterns) {
+      if (pattern.test(code)) {
+        detected.push('tailwindcss');
+        break;
       }
     }
   }
