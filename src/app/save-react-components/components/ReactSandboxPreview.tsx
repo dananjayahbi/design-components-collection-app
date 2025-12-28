@@ -6,7 +6,59 @@ import {
   SandpackProvider,
   SandpackPreview,
   SandpackLayout,
+  useSandpack,
 } from "@codesandbox/sandpack-react";
+
+// Wrapper component that waits for bundler to be ready before showing preview
+function SandpackPreviewWithLoading({ height }: { height: number }) {
+  const { sandpack, listen } = useSandpack();
+  const [isReady, setIsReady] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    // Listen for bundler status messages
+    const stopListening = listen((message) => {
+      if (message.type === "done") {
+        setIsReady(true);
+      }
+      if (message.type === "action" && message.action === "show-error") {
+        setHasError(true);
+      }
+    });
+
+    return () => stopListening();
+  }, [listen]);
+
+  // Also check sandpack status
+  useEffect(() => {
+    if (sandpack.status === "running") {
+      // Give a little time for the bundler to finish
+      const timer = setTimeout(() => setIsReady(true), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [sandpack.status]);
+
+  if (!isReady && !hasError) {
+    return (
+      <div className="w-full flex items-center justify-center bg-gray-50" style={{ height }}>
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+          <p className="text-gray-500 text-sm">Loading preview...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <SandpackLayout style={{ height }}>
+      <SandpackPreview
+        showOpenInCodeSandbox={false}
+        showRefreshButton={false}
+        style={{ height, width: "100%" }}
+      />
+    </SandpackLayout>
+  );
+}
 
 interface ReactSandboxPreviewProps {
   componentCode: string;
@@ -29,6 +81,14 @@ export default function ReactSandboxPreview({
   const handleRefresh = useCallback(() => {
     setKey(prev => prev + 1);
   }, []);
+
+  // Refresh when dependencies change to force Sandpack to reload with new dependencies
+  useEffect(() => {
+    // Only refresh if dependencies actually changed (not initial render)
+    if (dependencies.length > 0) {
+      setKey(prev => prev + 1);
+    }
+  }, [dependencies.join(',')]); // Use join to create a stable string for comparison
 
   // Measure container height dynamically
   useEffect(() => {
@@ -107,7 +167,18 @@ body, html {
     // Combine base CSS with any custom CSS
     const combinedCss = cssCode.trim() ? `${baseCss}\n\n${cssCode}` : baseCss;
     
-    const fileMap: Record<string, { code: string; active?: boolean }> = {
+    // Build package.json with dependencies for more reliable loading
+    const packageJson = {
+      name: "sandpack-project",
+      main: "/index.js",
+      dependencies: {
+        react: "^18.0.0",
+        "react-dom": "^18.0.0",
+        ...sandpackDependencies,
+      },
+    };
+    
+    const fileMap: Record<string, { code: string; active?: boolean; hidden?: boolean }> = {
       "/App.js": {
         code: preparedCode,
         active: true,
@@ -115,10 +186,14 @@ body, html {
       "/styles.css": {
         code: combinedCss,
       },
+      "/package.json": {
+        code: JSON.stringify(packageJson, null, 2),
+        hidden: true,
+      },
     };
     
     return fileMap;
-  }, [preparedCode, cssCode, baseCss]);
+  }, [preparedCode, cssCode, baseCss, sandpackDependencies]);
 
   return (
     <div className="h-full w-full rounded-lg border-2 border-emerald-400 overflow-hidden bg-white flex flex-col">
@@ -161,7 +236,7 @@ body, html {
       >
         {containerHeight !== null && containerHeight > 0 && (
           <SandpackProvider
-            key={key}
+            key={`${key}-${dependencies.join(',')}`}
             template="react"
             files={files}
             customSetup={{
@@ -174,13 +249,7 @@ body, html {
             }}
             theme="light"
           >
-            <SandpackLayout style={{ height: containerHeight }}>
-              <SandpackPreview
-                showOpenInCodeSandbox={false}
-                showRefreshButton={false}
-                style={{ height: containerHeight, width: "100%" }}
-              />
-            </SandpackLayout>
+            <SandpackPreviewWithLoading height={containerHeight} />
           </SandpackProvider>
         )}
       </div>

@@ -51,6 +51,7 @@ export default function ReactComponentsContent() {
   const [componentCode, setComponentCode] = useState(defaultComponentCode);
   const [cssCode, setCssCode] = useState(defaultCssCode);
   const [dependencies, setDependencies] = useState<string[]>([]);
+  const [dependenciesReady, setDependenciesReady] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -89,6 +90,12 @@ export default function ReactComponentsContent() {
       }
       return prev;
     });
+    
+    // Mark dependencies as ready after detection runs
+    // Use setTimeout to ensure the state update has been processed
+    setTimeout(() => {
+      setDependenciesReady(true);
+    }, 0);
   }, [componentCode]);
 
   // Load component from localStorage when editing, or fetch from API on refresh
@@ -400,12 +407,21 @@ export default function ReactComponentsContent() {
 
         {/* Right side - Preview */}
         <div className="w-1/2">
-          <ReactSandboxPreview 
-            componentCode={componentCode} 
-            cssCode={cssCode}
-            dependencies={dependencies}
-            onExpand={() => setShowFullScreenPreview(true)}
-          />
+          {dependenciesReady ? (
+            <ReactSandboxPreview 
+              componentCode={componentCode} 
+              cssCode={cssCode}
+              dependencies={dependencies}
+              onExpand={() => setShowFullScreenPreview(true)}
+            />
+          ) : (
+            <div className="h-full w-full rounded-lg border-2 border-emerald-400 overflow-hidden bg-white flex items-center justify-center">
+              <div className="text-center text-gray-500">
+                <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                <p className="text-sm">Initializing preview...</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
