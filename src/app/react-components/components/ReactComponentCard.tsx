@@ -1,8 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Edit, Trash2, ExternalLink, Code } from "lucide-react";
 import type { ReactComponent } from "../hooks";
+import {
+  SandpackProvider,
+  SandpackPreview,
+} from "@codesandbox/sandpack-react";
 
 interface ReactComponentCardProps {
   component: ReactComponent;
@@ -18,60 +22,41 @@ export default function ReactComponentCard({
   const [showPreview, setShowPreview] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  // Generate the srcdoc content for live preview
-  const srcdoc = useMemo(() => {
-    return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      padding: 12px;
-      background: #ffffff;
-      overflow: hidden;
+  // Build dependency object for Sandpack
+  const sandpackDependencies: Record<string, string> = {};
+  for (const dep of (component.dependencies || [])) {
+    sandpackDependencies[dep] = 'latest';
+  }
+
+  // Prepare the component code - add React import and ensure export
+  let preparedCode = component.componentCode;
+  
+  // Add React import if not present (for React.useState, React.useEffect etc.)
+  if (!preparedCode.includes('import React')) {
+    preparedCode = `import React from 'react';\n${preparedCode}`;
+  }
+  
+  if (!preparedCode.includes('export default')) {
+    const constMatch = preparedCode.match(/const\s+([A-Z][a-zA-Z0-9]*)\s*=/);
+    const funcMatch = preparedCode.match(/function\s+([A-Z][a-zA-Z0-9]*)\s*\(/);
+    const componentName = constMatch?.[1] || funcMatch?.[1];
+    if (componentName) {
+      preparedCode = preparedCode + `\n\nexport default ${componentName};`;
     }
-    ${component.cssCode}
-  </style>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="text/babel" data-presets="react">
-    try {
-      ${component.componentCode}
-      
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      
-      if (typeof App !== 'undefined') {
-        root.render(<App />);
-      } else if (typeof Component !== 'undefined') {
-        root.render(<Component />);
-      } else {
-        const componentNames = Object.keys(window).filter(key => 
-          typeof window[key] === 'function' && 
-          /^[A-Z]/.test(key) && 
-          key !== 'React' && 
-          key !== 'ReactDOM'
-        );
-        if (componentNames.length > 0) {
-          const FirstComponent = window[componentNames[componentNames.length - 1]];
-          root.render(<FirstComponent />);
-        }
-      }
-    } catch (error) {
-      document.getElementById('root').innerHTML = '<div style="color: #dc2626; padding: 8px;">Error loading component</div>';
-    }
-  </script>
-</body>
-</html>
-    `;
-  }, [component.componentCode, component.cssCode]);
+  }
+
+  // Files for Sandpack
+  const files: Record<string, { code: string; active?: boolean }> = {
+    "/App.js": {
+      code: preparedCode,
+      active: true,
+    },
+  };
+  
+  // Only add CSS file if there's custom CSS
+  if (component.cssCode?.trim()) {
+    files["/styles.css"] = { code: component.cssCode };
+  }
 
   const formattedDate = new Date(component.createdAt).toLocaleDateString("en-US", {
     month: "short",
@@ -84,13 +69,26 @@ export default function ReactComponentCard({
       {/* Preview Area */}
       <div className="relative aspect-video bg-gray-50 overflow-hidden">
         {showPreview ? (
-          // Live React Preview
-          <iframe
-            title={`Preview of ${component.name}`}
-            className="w-full h-full"
-            srcDoc={srcdoc}
-            sandbox="allow-scripts"
-          />
+          // Live React Preview with Sandpack
+          <SandpackProvider
+            template="react"
+            files={files}
+            customSetup={{
+              dependencies: sandpackDependencies,
+            }}
+            options={{
+              recompileMode: "delayed",
+              recompileDelay: 1000,
+              externalResources: ["https://cdn.tailwindcss.com"],
+            }}
+            theme="light"
+          >
+            <SandpackPreview
+              showOpenInCodeSandbox={false}
+              showRefreshButton={false}
+              style={{ height: "100%" }}
+            />
+          </SandpackProvider>
         ) : component.thumbnailUrl && !imageError ? (
           // Thumbnail Image
           <img
@@ -101,7 +99,7 @@ export default function ReactComponentCard({
           />
         ) : (
           // Placeholder with React icon
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
+          <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-blue-50 to-purple-50">
             <div className="text-center">
               <span className="text-4xl">⚛️</span>
               <p className="text-gray-400 text-sm mt-2">React Component</p>

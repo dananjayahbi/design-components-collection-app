@@ -8,67 +8,39 @@ import SaveReactComponentModal from "./SaveReactComponentModal";
 import FullScreenReactEditorModal from "./FullScreenReactEditorModal";
 import FullScreenReactPreviewModal from "./FullScreenReactPreviewModal";
 import ReactThumbnailCaptureModal from "./ReactThumbnailCaptureModal";
+import DependencySelector from "./DependencySelector";
 import { Copy, Check, RotateCcw, Trash2, Save, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
-// Sample starter React component code
+// Sample starter React component code with Tailwind CSS
 const defaultComponentCode = `function App() {
   const [count, setCount] = React.useState(0);
   
   return (
-    <div className="card">
-      <h2>Hello React! ⚛️</h2>
-      <p>This is a React component sandbox.</p>
-      <p>Count: {count}</p>
-      <button onClick={() => setCount(count + 1)}>
+    <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-6 rounded-xl text-white text-center shadow-lg max-w-sm">
+      <h2 className="text-2xl font-bold mb-3">Hello React! ⚛️</h2>
+      <p className="mb-3 opacity-90">This is a React component sandbox.</p>
+      <p className="mb-4 opacity-90">Count: {count}</p>
+      <button 
+        onClick={() => setCount(count + 1)}
+        className="bg-white text-purple-600 px-6 py-2 rounded-lg font-semibold hover:shadow-lg hover:-translate-y-0.5 transition-all"
+      >
         Click Me
       </button>
     </div>
   );
 }`;
 
-const defaultCssCode = `.card {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  padding: 24px;
-  border-radius: 12px;
-  color: white;
-  text-align: center;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  max-width: 400px;
-}
-
-.card h2 {
-  margin-bottom: 12px;
-  font-size: 24px;
-}
-
-.card p {
-  margin-bottom: 12px;
-  opacity: 0.9;
-}
-
-.card button {
-  background: white;
-  color: #8b5cf6;
-  border: none;
-  padding: 10px 24px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.card button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}`;
+// Empty CSS by default since we use Tailwind
+const defaultCssCode = ``;
 
 interface EditingComponent {
   id: string;
   name: string;
   description: string | null;
   tags: string[];
+  dependencies?: string[];
 }
 
 export default function ReactComponentsContent() {
@@ -77,6 +49,7 @@ export default function ReactComponentsContent() {
 
   const [componentCode, setComponentCode] = useState(defaultComponentCode);
   const [cssCode, setCssCode] = useState(defaultCssCode);
+  const [dependencies, setDependencies] = useState<string[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -117,11 +90,13 @@ export default function ReactComponentsContent() {
           if (component.id === editId) {
             setComponentCode(component.componentCode || "");
             setCssCode(component.cssCode || "");
+            setDependencies(component.dependencies || []);
             setEditingComponent({
               id: component.id,
               name: component.name,
               description: component.description,
               tags: component.tags || [],
+              dependencies: component.dependencies || [],
             });
             // Clear storage after loading
             localStorage.removeItem(`editReactComponent_${editId}`);
@@ -142,11 +117,13 @@ export default function ReactComponentsContent() {
             const component = await response.json();
             setComponentCode(component.componentCode || "");
             setCssCode(component.cssCode || "");
+            setDependencies(component.dependencies || []);
             setEditingComponent({
               id: component.id,
               name: component.name,
               description: component.description,
               tags: component.tags || [],
+              dependencies: component.dependencies || [],
             });
           } else {
             console.error("Failed to fetch component");
@@ -208,6 +185,7 @@ export default function ReactComponentsContent() {
             description,
             componentCode,
             cssCode,
+            dependencies,
             tags,
             ...(thumbnailUrl && { thumbnailUrl }),
           }
@@ -216,6 +194,7 @@ export default function ReactComponentsContent() {
             description,
             componentCode,
             cssCode,
+            dependencies,
             tags,
             ...(thumbnailUrl && { thumbnailUrl }),
           };
@@ -247,6 +226,7 @@ export default function ReactComponentsContent() {
           name,
           description,
           tags,
+          dependencies,
         });
       }
     } catch (error) {
@@ -380,26 +360,22 @@ export default function ReactComponentsContent() {
 
       {/* Main content area - Different layout for React (horizontal split with two editors on left) */}
       <div className="flex-1 flex gap-4 min-h-0">
-        {/* Left side - Code editors (stacked) */}
+        {/* Left side - Code editors and dependencies (stacked) */}
         <div className="w-1/2 flex flex-col gap-3">
-          {/* React Component Editor - Takes more space */}
-          <div className="flex-[2] min-h-0">
+          {/* Dependency Selector */}
+          <DependencySelector
+            selectedDependencies={dependencies}
+            onDependenciesChange={setDependencies}
+            componentCode={componentCode}
+          />
+          {/* React Component Editor - Takes full space */}
+          <div className="flex-1 min-h-0">
             <ReactCodeEditor
               language="javascript"
               value={componentCode}
               onChange={setComponentCode}
-              label="React Component (JSX)"
-              onExpand={() => setFullScreenEditor({ isOpen: true, language: "javascript", label: "React Component (JSX)" })}
-            />
-          </div>
-          {/* CSS Editor */}
-          <div className="flex-1 min-h-0">
-            <ReactCodeEditor
-              language="css"
-              value={cssCode}
-              onChange={setCssCode}
-              label="CSS Styles"
-              onExpand={() => setFullScreenEditor({ isOpen: true, language: "css", label: "CSS Styles" })}
+              label="React Component (JSX + Tailwind CSS)"
+              onExpand={() => setFullScreenEditor({ isOpen: true, language: "javascript", label: "React Component (JSX + Tailwind CSS)" })}
             />
           </div>
         </div>
@@ -409,6 +385,7 @@ export default function ReactComponentsContent() {
           <ReactSandboxPreview 
             componentCode={componentCode} 
             cssCode={cssCode}
+            dependencies={dependencies}
             onExpand={() => setShowFullScreenPreview(true)}
           />
         </div>
@@ -437,6 +414,7 @@ export default function ReactComponentsContent() {
         onCapture={handleThumbnailCaptured}
         componentCode={componentCode}
         cssCode={cssCode}
+        dependencies={dependencies}
         componentName={pendingSaveData?.name || "Component"}
       />
 
@@ -463,6 +441,7 @@ export default function ReactComponentsContent() {
         onClose={() => setShowFullScreenPreview(false)}
         componentCode={componentCode}
         cssCode={cssCode}
+        dependencies={dependencies}
       />
     </div>
   );

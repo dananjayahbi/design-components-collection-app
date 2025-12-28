@@ -1,137 +1,90 @@
 "use client";
 
-import { useMemo, useCallback, useState, useEffect } from "react";
-import { Maximize2, ExternalLink, RefreshCw, AlertCircle } from "lucide-react";
+import { useMemo, useCallback, useState } from "react";
+import { Maximize2, RefreshCw } from "lucide-react";
+import {
+  SandpackProvider,
+  SandpackPreview,
+} from "@codesandbox/sandpack-react";
 
 interface ReactSandboxPreviewProps {
   componentCode: string;
-  cssCode: string;
+  cssCode?: string;
+  dependencies?: string[];
   onExpand?: () => void;
 }
 
 export default function ReactSandboxPreview({
   componentCode,
-  cssCode,
+  cssCode = "",
+  dependencies = [],
   onExpand,
 }: ReactSandboxPreviewProps) {
-  const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState(0);
 
   // Force refresh the preview
   const handleRefresh = useCallback(() => {
     setKey(prev => prev + 1);
-    setError(null);
   }, []);
 
-  // Generate the srcdoc content with React runtime
-  const srcdoc = useMemo(() => {
-    // Reset error when code changes
-    setError(null);
+  // Build dependency object for Sandpack
+  const sandpackDependencies = useMemo(() => {
+    const deps: Record<string, string> = {};
     
-    return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>
-    /* Reset default styles */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    for (const dep of dependencies) {
+      deps[dep] = 'latest';
     }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      padding: 16px;
-      background: #ffffff;
-    }
-    .error-container {
-      background: #fee2e2;
-      border: 1px solid #ef4444;
-      border-radius: 8px;
-      padding: 16px;
-      color: #dc2626;
-      font-family: monospace;
-      font-size: 13px;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .error-title {
-      font-weight: bold;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    /* User CSS */
-    ${cssCode}
-  </style>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="text/babel" data-presets="react">
-    try {
-      // User's React component code
-      ${componentCode}
-      
-      // Try to render the component
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      
-      // Check if there's a default export or named App/Component
-      if (typeof App !== 'undefined') {
-        root.render(<App />);
-      } else if (typeof Component !== 'undefined') {
-        root.render(<Component />);
-      } else if (typeof Default !== 'undefined') {
-        root.render(<Default />);
-      } else {
-        // Try to find any function component defined
-        const componentNames = Object.keys(window).filter(key => 
-          typeof window[key] === 'function' && 
-          /^[A-Z]/.test(key) && 
-          key !== 'React' && 
-          key !== 'ReactDOM'
-        );
-        
-        if (componentNames.length > 0) {
-          const FirstComponent = window[componentNames[componentNames.length - 1]];
-          root.render(<FirstComponent />);
-        } else {
-          throw new Error('No React component found. Please define a component named App, Component, or any PascalCase function component.');
-        }
-      }
-    } catch (error) {
-      document.getElementById('root').innerHTML = \`
-        <div class="error-container">
-          <div class="error-title">⚠️ Error</div>
-          \${error.message}
-        </div>
-      \`;
-      console.error('React Sandbox Error:', error);
-    }
-  </script>
-</body>
-</html>
-    `;
-  }, [componentCode, cssCode]);
+    
+    return deps;
+  }, [dependencies]);
 
-  // Open preview in new tab
-  const handleOpenInNewTab = useCallback(() => {
-    const newWindow = window.open("", "_blank");
-    if (newWindow) {
-      newWindow.document.write(srcdoc);
-      newWindow.document.close();
+  // Prepare the component code - add React import and ensure export
+  const preparedCode = useMemo(() => {
+    let code = componentCode;
+    
+    // Add React import if not present (for React.useState, React.useEffect etc.)
+    if (!code.includes('import React')) {
+      code = `import React from 'react';\n${code}`;
     }
-  }, [srcdoc]);
+    
+    // Check if code has export default
+    if (!code.includes('export default')) {
+      // Pattern: const ComponentName = () => or const ComponentName = function
+      const constMatch = code.match(/const\s+([A-Z][a-zA-Z0-9]*)\s*=/);
+      // Pattern: function ComponentName
+      const funcMatch = code.match(/function\s+([A-Z][a-zA-Z0-9]*)\s*\(/);
+      
+      const componentName = constMatch?.[1] || funcMatch?.[1];
+      
+      if (componentName) {
+        code = code + `\n\nexport default ${componentName};`;
+      }
+    }
+    
+    return code;
+  }, [componentCode]);
+
+  // Files for Sandpack
+  const files = useMemo(() => {
+    const fileMap: Record<string, { code: string; active?: boolean }> = {
+      "/App.js": {
+        code: preparedCode,
+        active: true,
+      },
+    };
+    
+    // Only add CSS file if there's custom CSS
+    if (cssCode.trim()) {
+      fileMap["/styles.css"] = { code: cssCode };
+    }
+    
+    return fileMap;
+  }, [preparedCode, cssCode]);
 
   return (
-    <div className="h-full w-full rounded-lg border-2 border-emerald-400 overflow-hidden bg-white">
+    <div className="h-full w-full rounded-lg border-2 border-emerald-400 overflow-hidden bg-white flex flex-col">
       {/* Header */}
-      <div className="bg-emerald-600 px-3 py-2 flex items-center gap-2">
+      <div className="bg-emerald-600 px-3 py-2 flex items-center gap-2 shrink-0">
         <span className="text-lg">⚛️</span>
         <span className="text-white font-semibold text-sm">React Preview</span>
         <div className="flex items-center gap-2 ml-auto">
@@ -153,14 +106,6 @@ export default function ReactSandboxPreview({
               <Maximize2 className="w-4 h-4 text-white" />
             </button>
           )}
-          {/* Open in new tab button */}
-          <button
-            onClick={handleOpenInNewTab}
-            className="p-1.5 hover:bg-white/20 rounded transition-colors"
-            title="Open in New Tab"
-          >
-            <ExternalLink className="w-4 h-4 text-white" />
-          </button>
           {/* Window dots */}
           <div className="flex gap-1.5 ml-2">
             <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -170,22 +115,29 @@ export default function ReactSandboxPreview({
         </div>
       </div>
 
-      {/* Error display */}
-      {error && (
-        <div className="bg-red-50 border-b border-red-200 px-3 py-2 flex items-center gap-2 text-red-600 text-sm">
-          <AlertCircle className="w-4 h-4" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* Iframe Sandbox using srcdoc */}
-      <iframe
-        key={key}
-        title="React Component Preview"
-        className="w-full h-[calc(100%-40px)] bg-white"
-        srcDoc={srcdoc}
-        sandbox="allow-scripts"
-      />
+      {/* Sandpack Preview */}
+      <div className="flex-1 min-h-0">
+        <SandpackProvider
+          key={key}
+          template="react"
+          files={files}
+          customSetup={{
+            dependencies: sandpackDependencies,
+          }}
+          options={{
+            recompileMode: "delayed",
+            recompileDelay: 1000,
+            externalResources: ["https://cdn.tailwindcss.com"],
+          }}
+          theme="light"
+        >
+          <SandpackPreview
+            showOpenInCodeSandbox={false}
+            showRefreshButton={false}
+            style={{ height: "100%" }}
+          />
+        </SandpackProvider>
+      </div>
     </div>
   );
 }

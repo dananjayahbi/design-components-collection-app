@@ -10,6 +10,7 @@ import {
   Move,
 } from "lucide-react";
 import html2canvas from "html2canvas";
+import { generateSandboxHtml } from "@/lib/constants/reactDependencies";
 
 interface ReactThumbnailCaptureModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface ReactThumbnailCaptureModalProps {
   onCapture: (thumbnailBlob: Blob) => void;
   componentCode: string;
   cssCode: string;
+  dependencies?: string[];
   componentName: string;
 }
 
@@ -34,6 +36,7 @@ export default function ReactThumbnailCaptureModal({
   onCapture,
   componentCode,
   cssCode,
+  dependencies = [],
   componentName,
 }: ReactThumbnailCaptureModalProps) {
   const [zoom, setZoom] = useState(1);
@@ -51,69 +54,10 @@ export default function ReactThumbnailCaptureModal({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const hiddenContainerRef = useRef<HTMLDivElement>(null);
 
-  // Create the iframe srcdoc content with React runtime
+  // Create the iframe srcdoc content with React runtime and dependencies
   const srcdoc = useMemo(() => {
-    return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>
-    /* Reset default styles */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      padding: 16px;
-      background: #ffffff;
-      min-height: 100vh;
-    }
-    /* User CSS */
-    ${cssCode}
-  </style>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="text/babel" data-presets="react">
-    try {
-      ${componentCode}
-      
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      
-      if (typeof App !== 'undefined') {
-        root.render(<App />);
-      } else if (typeof Component !== 'undefined') {
-        root.render(<Component />);
-      } else if (typeof Default !== 'undefined') {
-        root.render(<Default />);
-      } else {
-        const componentNames = Object.keys(window).filter(key => 
-          typeof window[key] === 'function' && 
-          /^[A-Z]/.test(key) && 
-          key !== 'React' && 
-          key !== 'ReactDOM'
-        );
-        
-        if (componentNames.length > 0) {
-          const FirstComponent = window[componentNames[componentNames.length - 1]];
-          root.render(<FirstComponent />);
-        }
-      }
-    } catch (error) {
-      console.error('React Error:', error);
-    }
-  </script>
-</body>
-</html>
-    `;
-  }, [componentCode, cssCode]);
+    return generateSandboxHtml(componentCode, cssCode, dependencies);
+  }, [componentCode, cssCode, dependencies]);
 
   // Handle escape key
   const handleKeyDown = useCallback(
@@ -324,7 +268,7 @@ export default function ReactThumbnailCaptureModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center">
+    <div className="fixed inset-0 z-1000 flex items-center justify-center">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       

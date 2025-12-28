@@ -84,6 +84,7 @@ model ReactComponent {
   description   String?  // Optional description of the component
   componentCode String   @db.Text // React component code (JSX/TSX)
   cssCode       String   @db.Text // CSS/SCSS code for styling
+  dependencies  String[] // NPM package dependencies needed for the component
   tags          String[] // Tags for categorization
   isFavorite    Boolean  @default(false)
   thumbnailUrl  String?  // URL/path to thumbnail image

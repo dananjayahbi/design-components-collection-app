@@ -8,6 +8,7 @@ export interface ReactComponent {
   description: string | null;
   componentCode: string;
   cssCode: string;
+  dependencies: string[];
   tags: string[];
   isFavorite: boolean;
   thumbnailUrl: string | null;

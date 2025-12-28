@@ -127,7 +127,7 @@ export default function SaveReactComponentModal({
         className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-emerald-600">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-linear-to-r from-blue-600 to-emerald-600">
           <h2 className="text-xl font-semibold text-white">
             {isEditing ? "Update React Component" : "Save React Component"}
           </h2>
