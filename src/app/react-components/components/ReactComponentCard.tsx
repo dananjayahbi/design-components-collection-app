@@ -49,6 +49,23 @@ export default function ReactComponentCard({
     sandpackDependencies[dep] = 'latest';
   }
 
+  // Base CSS to center components in preview
+  const baseCss = `
+body, html {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+#root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+`.trim();
+
   // Prepare the component code - add React import and ensure export
   let preparedCode = component.componentCode;
   
@@ -66,18 +83,20 @@ export default function ReactComponentCard({
     }
   }
 
-  // Files for Sandpack
+  // Files for Sandpack - always include base CSS for centering
+  const combinedCss = component.cssCode?.trim() 
+    ? `${baseCss}\n\n${component.cssCode}` 
+    : baseCss;
+    
   const files: Record<string, { code: string; active?: boolean }> = {
     "/App.js": {
       code: preparedCode,
       active: true,
     },
+    "/styles.css": {
+      code: combinedCss,
+    },
   };
-  
-  // Only add CSS file if there's custom CSS
-  if (component.cssCode?.trim()) {
-    files["/styles.css"] = { code: component.cssCode };
-  }
 
   const formattedDate = new Date(component.createdAt).toLocaleDateString("en-US", {
     month: "short",

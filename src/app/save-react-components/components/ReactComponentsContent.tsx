@@ -12,6 +12,7 @@ import DependencySelector from "./DependencySelector";
 import { Copy, Check, RotateCcw, Trash2, Save, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import { detectDependenciesFromCode } from "@/lib/constants/reactDependencies";
 
 // Sample starter React component code with Tailwind CSS
 const defaultComponentCode = `function App() {
@@ -72,6 +73,23 @@ export default function ReactComponentsContent() {
     description: string;
     tags: string[];
   } | null>(null);
+
+  // Auto-detect dependencies from import statements
+  useEffect(() => {
+    const detectedPackages = detectDependenciesFromCode(componentCode);
+    
+    // Merge detected packages with existing dependencies (don't remove manually added ones)
+    setDependencies(prev => {
+      const combined = new Set([...prev, ...detectedPackages]);
+      const newDeps = Array.from(combined);
+      
+      // Only update if there are changes
+      if (newDeps.length !== prev.length || !newDeps.every(d => prev.includes(d))) {
+        return newDeps;
+      }
+      return prev;
+    });
+  }, [componentCode]);
 
   // Load component from localStorage when editing, or fetch from API on refresh
   useEffect(() => {

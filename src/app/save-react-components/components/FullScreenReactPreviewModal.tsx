@@ -77,6 +77,23 @@ export default function FullScreenReactPreviewModal({
     return deps;
   }, [dependencies]);
 
+  // Base CSS for centering content in the preview
+  const baseCss = `
+body, html {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+#root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+`.trim();
+
   // Prepare the component code - add React import and ensure export
   const preparedCode = useMemo(() => {
     let code = componentCode;
@@ -100,19 +117,20 @@ export default function FullScreenReactPreviewModal({
     return code;
   }, [componentCode]);
 
-  // Files for Sandpack
+  // Files for Sandpack - always include base CSS for centering
   const files = useMemo(() => {
+    // Combine base CSS with any custom CSS
+    const combinedCss = cssCode.trim() ? `${baseCss}\n\n${cssCode}` : baseCss;
+    
     const fileMap: Record<string, { code: string; active?: boolean }> = {
       "/App.js": {
         code: preparedCode,
         active: true,
       },
+      "/styles.css": {
+        code: combinedCss,
+      },
     };
-    
-    // Only add CSS file if there's custom CSS
-    if (cssCode.trim()) {
-      fileMap["/styles.css"] = { code: cssCode };
-    }
     
     return fileMap;
   }, [preparedCode, cssCode]);
