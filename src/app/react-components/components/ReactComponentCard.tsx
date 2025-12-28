@@ -268,15 +268,15 @@ body, html {
   }, [component.id, component.dependencies]);
 
   return (
-    <div className="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-      {/* Preview Area */}
-      <div ref={containerRef} className="relative aspect-video bg-gray-50 overflow-hidden">
+    <div className="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden break-inside-avoid">
+      {/* Preview Area - no fixed aspect ratio, min-height for initial display */}
+      <div ref={containerRef} className="relative min-h-[180px] bg-gray-50 overflow-hidden">
         {/* Show thumbnail if available and not in preview mode */}
         {!showPreview && component.thumbnailUrl && !imageError ? (
           <img
             src={component.thumbnailUrl}
             alt={component.name}
-            className="w-full h-full object-cover"
+            className="w-full h-auto object-contain"
             onError={() => setImageError(true)}
           />
         ) : shouldRenderSandpack && containerHeight !== null && containerHeight > 0 ? (
@@ -297,11 +297,11 @@ body, html {
             }}
             theme="light"
           >
-            <SandpackPreviewWithLoading height={containerHeight} />
+            <SandpackPreviewWithLoading height={Math.max(containerHeight, 200)} />
           </SandpackProvider>
         ) : (
           // Loading state while waiting for sandpack to be ready
-          <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-blue-50 to-purple-50">
+          <div className="w-full h-full min-h-[180px] flex items-center justify-center bg-linear-to-br from-blue-50 to-purple-50">
             <div className="text-center">
               <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
               <p className="text-gray-500 text-sm">Loading preview...</p>
@@ -309,8 +309,8 @@ body, html {
           </div>
         )}
 
-        {/* Overlay on hover */}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
+        {/* Overlay on hover - positioned at bottom for easier access */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-3 flex items-end justify-center gap-2">
           {/* Only show toggle button if there's a thumbnail to switch between */}
           {component.thumbnailUrl && (
             <button
