@@ -32,7 +32,6 @@ function SandpackPreviewWithLoading({ height }: { height: number }) {
   // Also check sandpack status
   useEffect(() => {
     if (sandpack.status === "running") {
-      // Give a little time for the bundler to finish
       const timer = setTimeout(() => setIsReady(true), 300);
       return () => clearTimeout(timer);
     }
@@ -42,7 +41,7 @@ function SandpackPreviewWithLoading({ height }: { height: number }) {
     return (
       <div className="w-full flex items-center justify-center bg-gray-50" style={{ height }}>
         <div className="text-center">
-          <div className="animate-spin w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+          <div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-3"></div>
           <p className="text-gray-500">Loading preview...</p>
         </div>
       </div>
@@ -60,21 +59,23 @@ function SandpackPreviewWithLoading({ height }: { height: number }) {
   );
 }
 
-interface FullScreenReactPreviewModalProps {
+interface ReactPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
+  componentName: string;
   componentCode: string;
   cssCode?: string;
   dependencies?: string[];
 }
 
-export default function FullScreenReactPreviewModal({
+export default function ReactPreviewModal({
   isOpen,
   onClose,
+  componentName,
   componentCode,
   cssCode = "",
   dependencies = [],
-}: FullScreenReactPreviewModalProps) {
+}: ReactPreviewModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState<number | null>(null);
   
@@ -112,13 +113,39 @@ export default function FullScreenReactPreviewModal({
     });
 
     resizeObserver.observe(container);
-    // Initial measurement
     setContainerHeight(container.clientHeight);
 
     return () => resizeObserver.disconnect();
   }, [isOpen]);
 
-  // Build dependency object for Sandpack
+  // Auto-detect dependencies from code imports
+  const detectedDependencies = useMemo(() => {
+    const deps = new Set<string>();
+    
+    // Match import statements
+    const importRegex = /import\s+(?:[\w\s{},*]+\s+from\s+)?['"]([^'"./][^'"]*)['"]/g;
+    let match;
+    while ((match = importRegex.exec(componentCode)) !== null) {
+      const packageName = match[1];
+      if (packageName.startsWith('@')) {
+        const parts = packageName.split('/');
+        if (parts.length >= 2) {
+          deps.add(`${parts[0]}/${parts[1]}`);
+        }
+      } else {
+        const parts = packageName.split('/');
+        deps.add(parts[0]);
+      }
+    }
+    
+    // Remove built-in packages
+    const builtIns = ['react', 'react-dom', 'react/jsx-runtime'];
+    builtIns.forEach(pkg => deps.delete(pkg));
+    
+    return Array.from(deps);
+  }, [componentCode]);
+
+  // Build dependency object for Sandpack - combine stored + detected
   const sandpackDependencies = useMemo(() => {
     const deps: Record<string, string> = {};
     
@@ -126,8 +153,14 @@ export default function FullScreenReactPreviewModal({
       deps[dep] = 'latest';
     }
     
+    for (const dep of detectedDependencies) {
+      if (!deps[dep]) {
+        deps[dep] = 'latest';
+      }
+    }
+    
     return deps;
-  }, [dependencies]);
+  }, [dependencies, detectedDependencies]);
 
   // Base CSS for centering content in the preview
   const baseCss = `
@@ -146,11 +179,10 @@ body, html {
 }
 `.trim();
 
-  // Prepare the component code - add React import and ensure export
+  // Prepare the component code
   const preparedCode = useMemo(() => {
     let code = componentCode;
     
-    // Add React import if not present (for React.useState, React.useEffect etc.)
     if (!code.includes('import React')) {
       code = `import React from 'react';\n${code}`;
     }
@@ -158,23 +190,20 @@ body, html {
     if (!code.includes('export default')) {
       const constMatch = code.match(/const\s+([A-Z][a-zA-Z0-9]*)\s*=/);
       const funcMatch = code.match(/function\s+([A-Z][a-zA-Z0-9]*)\s*\(/);
+      const componentNameMatch = constMatch?.[1] || funcMatch?.[1];
       
-      const componentName = constMatch?.[1] || funcMatch?.[1];
-      
-      if (componentName) {
-        code = code + `\n\nexport default ${componentName};`;
+      if (componentNameMatch) {
+        code = code + `\n\nexport default ${componentNameMatch};`;
       }
     }
     
     return code;
   }, [componentCode]);
 
-  // Files for Sandpack - always include base CSS for centering
+  // Files for Sandpack
   const files = useMemo(() => {
-    // Combine base CSS with any custom CSS
     const combinedCss = cssCode.trim() ? `${baseCss}\n\n${cssCode}` : baseCss;
     
-    // Build package.json with dependencies for more reliable loading
     const packageJson = {
       name: "sandpack-project",
       main: "/index.js",
@@ -185,7 +214,7 @@ body, html {
       },
     };
     
-    const fileMap: Record<string, { code: string; active?: boolean; hidden?: boolean }> = {
+    return {
       "/App.js": {
         code: preparedCode,
         active: true,
@@ -197,15 +226,13 @@ body, html {
         code: JSON.stringify(packageJson, null, 2),
         hidden: true,
       },
-    };
-    
-    return fileMap;
-  }, [preparedCode, cssCode, sandpackDependencies]);
+    } as Record<string, { code: string; active?: boolean; hidden?: boolean }>;
+  }, [preparedCode, cssCode, sandpackDependencies, baseCss]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center">
+    <div className="fixed inset-0 z-1000 flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
@@ -213,13 +240,12 @@ body, html {
       />
 
       {/* Modal Content */}
-      <div className="relative w-[95vw] h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col">
+      <div className="relative w-[90vw] max-w-4xl h-[80vh] bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-emerald-600 px-4 py-3 flex items-center justify-between shrink-0">
+        <div className="bg-blue-600 px-4 py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <span className="text-xl"></span>
-            <span className="text-white font-semibold text-lg">React Preview</span>
-            <span className="text-white/70 text-sm">(Full Screen)</span>
+            <span className="text-white font-semibold text-lg">{componentName}</span>
+            <span className="text-white/70 text-sm">(Preview)</span>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex gap-1.5">
@@ -244,7 +270,7 @@ body, html {
         >
           {containerHeight !== null && containerHeight > 0 && (
             <SandpackProvider
-              key={dependencies.join(',')}
+              key={detectedDependencies.join(',')}
               template="react"
               files={files}
               customSetup={{

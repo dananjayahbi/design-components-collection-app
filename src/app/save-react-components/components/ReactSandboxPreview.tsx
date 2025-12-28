@@ -199,7 +199,7 @@ body, html {
     <div className="h-full w-full rounded-lg border-2 border-emerald-400 overflow-hidden bg-white flex flex-col">
       {/* Header */}
       <div className="bg-emerald-600 px-3 py-2 flex items-center gap-2 shrink-0">
-        <span className="text-lg">⚛️</span>
+        <span className="text-lg"></span>
         <span className="text-white font-semibold text-sm">React Preview</span>
         <div className="flex items-center gap-2 ml-auto">
           {/* Refresh button */}

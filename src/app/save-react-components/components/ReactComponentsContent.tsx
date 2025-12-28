@@ -20,7 +20,7 @@ const defaultComponentCode = `function App() {
   
   return (
     <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-6 rounded-xl text-white text-center shadow-lg max-w-sm">
-      <h2 className="text-2xl font-bold mb-3">Hello React! ⚛️</h2>
+      <h2 className="text-2xl font-bold mb-3">Hello React! </h2>
       <p className="mb-3 opacity-90">This is a React component sandbox.</p>
       <p className="mb-4 opacity-90">Count: {count}</p>
       <button 

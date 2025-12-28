@@ -15,19 +15,19 @@ const languageConfig = {
   javascript: {
     border: "border-blue-400",
     label: "bg-blue-600",
-    icon: "⚛️",
+    icon: "",
     monacoLang: "javascript",
   },
   typescript: {
     border: "border-blue-500",
     label: "bg-blue-700",
-    icon: "⚛️",
+    icon: "",
     monacoLang: "typescript",
   },
   css: {
     border: "border-pink-400",
     label: "bg-pink-500",
-    icon: "🎨",
+    icon: "",
     monacoLang: "css",
   },
 };

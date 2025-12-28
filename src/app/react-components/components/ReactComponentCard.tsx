@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Edit, Trash2, ExternalLink, Code } from "lucide-react";
+import { Edit, Trash2, ExternalLink, Code, Eye } from "lucide-react";
 import type { ReactComponent } from "../hooks";
 import {
   SandpackProvider,
@@ -9,6 +9,7 @@ import {
   SandpackLayout,
   useSandpack,
 } from "@codesandbox/sandpack-react";
+import ReactPreviewModal from "./ReactPreviewModal";
 
 // Wrapper component that waits for bundler to be ready
 function SandpackPreviewWithLoading({ height }: { height: number }) {
@@ -75,6 +76,7 @@ export default function ReactComponentCard({
   // Show live preview by default if no thumbnail
   const [showPreview, setShowPreview] = useState(!component.thumbnailUrl);
   const [imageError, setImageError] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState<number | null>(null);
   const [isInView, setIsInView] = useState(false);
@@ -320,6 +322,13 @@ body, html {
             </button>
           )}
           <button
+            onClick={() => setIsPreviewModalOpen(true)}
+            className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+            title="Preview at Full Scale"
+          >
+            <Eye className="w-5 h-5 text-green-600" />
+          </button>
+          <button
             onClick={() => onEdit(component)}
             className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
             title="Edit Component"
@@ -337,7 +346,7 @@ body, html {
 
         {/* React badge */}
         <div className="absolute top-2 left-2 px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded-full">
-          ⚛️ React
+           React
         </div>
       </div>
 
@@ -383,6 +392,16 @@ body, html {
           </button>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      <ReactPreviewModal
+        isOpen={isPreviewModalOpen}
+        onClose={() => setIsPreviewModalOpen(false)}
+        componentName={component.name}
+        componentCode={component.componentCode}
+        cssCode={component.cssCode}
+        dependencies={component.dependencies}
+      />
     </div>
   );
 }
