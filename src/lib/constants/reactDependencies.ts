@@ -102,6 +102,8 @@ export function generateSandboxHtml(
   
   // Remove all import statements for supported packages and React
   const importPatterns = [
+    // import React, { X, Y } from 'package' (default + named imports)
+    /import\s+\w+\s*,\s*\{[^}]*\}\s*from\s*['"][^'"]+['"];?\n?/g,
     // import { X, Y } from 'package'
     /import\s*\{[^}]*\}\s*from\s*['"][^'"]+['"];?\n?/g,
     // import X from 'package'
@@ -184,10 +186,23 @@ export function generateSandboxHtml(
   ${depScriptTags}
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      padding: 16px;
       background: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+    }
+    #root {
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
     .error-container {
       background: #fee2e2;
