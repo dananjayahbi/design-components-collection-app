@@ -231,7 +231,7 @@ export default function ReactComponentsContent() {
       {/* Components Grid */}
       {!isLoading && !error && components.length > 0 && (
         <>
-          <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {components.map((component) => (
               <ReactComponentCard
                 key={component.id}
@@ -258,7 +258,7 @@ export default function ReactComponentsContent() {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
-        onClose={() =>
+        onCancel={() =>
           setDeleteConfirm({ isOpen: false, componentId: "", componentName: "" })
         }
         onConfirm={handleDelete}
@@ -266,7 +266,7 @@ export default function ReactComponentsContent() {
         message={`Are you sure you want to delete "${deleteConfirm.componentName}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
-        variant="danger"
+        danger={true}
       />
     </div>
   );

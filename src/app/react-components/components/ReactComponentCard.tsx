@@ -269,14 +269,14 @@ body, html {
 
   return (
     <div className="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden break-inside-avoid">
-      {/* Preview Area - no fixed aspect ratio, min-height for initial display */}
-      <div ref={containerRef} className="relative min-h-[180px] bg-gray-50 overflow-hidden">
+      {/* Preview Area - taller height to show more of the component */}
+      <div ref={containerRef} className="relative h-[320px] bg-gray-50 overflow-hidden">
         {/* Show thumbnail if available and not in preview mode */}
         {!showPreview && component.thumbnailUrl && !imageError ? (
           <img
             src={component.thumbnailUrl}
             alt={component.name}
-            className="w-full h-auto object-contain"
+            className="w-full h-full object-contain"
             onError={() => setImageError(true)}
           />
         ) : shouldRenderSandpack && containerHeight !== null && containerHeight > 0 ? (
@@ -297,11 +297,11 @@ body, html {
             }}
             theme="light"
           >
-            <SandpackPreviewWithLoading height={Math.max(containerHeight, 200)} />
+            <SandpackPreviewWithLoading height={containerHeight} />
           </SandpackProvider>
         ) : (
           // Loading state while waiting for sandpack to be ready
-          <div className="w-full h-full min-h-[180px] flex items-center justify-center bg-linear-to-br from-blue-50 to-purple-50">
+          <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-blue-50 to-purple-50">
             <div className="text-center">
               <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
               <p className="text-gray-500 text-sm">Loading preview...</p>
