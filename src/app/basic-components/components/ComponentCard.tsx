@@ -11,7 +11,7 @@ import {
   Copy,
   Check,
 } from "lucide-react";
-import { LazyComponentPreview } from "./LazyComponentPreview";
+import { ThumbnailPlaceholder } from "./ThumbnailPlaceholder";
 import type { BasicComponent } from "../hooks/useBasicComponents";
 
 interface ComponentCardProps {
@@ -29,6 +29,10 @@ function ComponentCardComponent({
 }: ComponentCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [thumbnailError, setThumbnailError] = useState(false);
+
+  // Check if component has a valid thumbnail
+  const hasThumbnail = component.thumbnailUrl && !thumbnailError;
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -52,14 +56,21 @@ function ComponentCardComponent({
 
   return (
     <div className="group relative bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-[#5B50E8]/50 hover:shadow-lg transition-all duration-300">
-      {/* Preview Area */}
-      <div className="relative">
-        <LazyComponentPreview
-          html={component.html}
-          css={component.css}
-          javascript={component.javascript}
-          componentId={component.id}
-        />
+      {/* Preview Area - Shows thumbnail if available, otherwise shows placeholder */}
+      <div className="relative h-48 bg-white overflow-hidden">
+        {hasThumbnail ? (
+          /* Thumbnail Display */
+          <img
+            src={component.thumbnailUrl!}
+            alt={`Preview of ${component.name}`}
+            className="w-full h-full object-contain"
+            loading="lazy"
+            onError={() => setThumbnailError(true)}
+          />
+        ) : (
+          /* Placeholder when no thumbnail available */
+          <ThumbnailPlaceholder name={component.name} className="h-full" />
+        )}
 
         {/* Overlay Actions */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
